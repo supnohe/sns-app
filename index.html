@@ -11,6 +11,9 @@
     .card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); margin-bottom: 20px; }
     h2 { color: #1a1a1a; font-size: 18px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; margin-top: 0; }
     
+    .auth-card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); text-align: center; }
+    .auth-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #f8fafc; padding: 10px 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
+
     .account-dashboard { background: linear-gradient(135deg, #1e293b, #0f172a); color: white; padding: 25px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
     .account-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
     .account-name { font-size: 20px; font-weight: bold; color: #38bdf8; }
@@ -21,13 +24,15 @@
     .input-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
     .input-group { margin-bottom: 12px; }
     label { display: block; margin-bottom: 6px; font-weight: bold; font-size: 13px; color: #444; }
-    input[type="file"], input[type="text"], input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; background: #fafafa; font-size: 14px; }
+    input[type="file"], input[type="text"], input[type="number"], input[type="email"], input[type="password"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; background: #fafafa; font-size: 14px; }
     button { background: #0066ff; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 15px; width: 100%; font-weight: bold; transition: background 0.2s; }
     button:hover { background: #0052cc; }
     button.sub-btn { background: #28a745; margin-top: 5px; }
     button.sub-btn:hover { background: #218838; }
     button.acc-btn { background: #6366f1; }
     button.acc-btn:hover { background: #4f46e5; }
+    button.logout-btn { background: #ef4444; padding: 6px 12px; font-size: 12px; width: auto; }
+    button.logout-btn:hover { background: #dc2626; }
     .divider { margin: 15px 0; text-align: center; color: #888; font-size: 12px; font-weight: bold; }
     .result { margin-top: 20px; padding: 20px; background: #ffffff; border: 1px solid #e1e8ed; border-radius: 12px; display: none; line-height: 1.8; color: #333; }
     .advice-content { white-space: pre-wrap; word-break: break-word; font-size: 15px; }
@@ -37,77 +42,107 @@
 
 <div class="container">
 
-  <!-- 0. 自分のTikTokアカウント情報エリア -->
-  <div class="account-dashboard">
-    <div class="account-header">
-      <div>👤 自分のアカウントデータ</div>
-      <div id="accUsername" class="account-name">未設定</div>
+  <!-- 🔒 ログイン・新規登録画面 (未ログイン時のみ表示) -->
+  <div id="authSection" class="auth-card">
+    <h2 style="border:none;">🔑 ログイン / アカウント作成</h2>
+    <div style="text-align:left; margin-top:15px;">
+      <div class="input-group">
+        <label>メールアドレス</label>
+        <input type="email" id="authEmail" placeholder="example@email.com">
+      </div>
+      <div class="input-group">
+        <label>パスワード</label>
+        <input type="password" id="authPassword" placeholder="6文字以上">
+      </div>
+      <div style="display:flex; gap:10px; margin-top:15px;">
+        <button onclick="handleSignIn()">ログイン</button>
+        <button onclick="handleSignUp()" class="sub-btn">新規登録</button>
+      </div>
+      <p id="authStatus" style="font-size:13px; color:#ef4444; margin-top:10px; text-align:center;"></p>
+    </div>
+  </div>
+
+  <!-- 🚀 メインコンテンツ (ログイン時のみ表示) -->
+  <div id="appSection" style="display: none;">
+
+    <div class="auth-header">
+      <span style="font-size:13px; color:#475569;">👤 ログイン中: <strong id="userEmailDisplay">-</strong></span>
+      <button class="logout-btn" onclick="handleSignOut()">ログアウト</button>
     </div>
 
-    <div class="stats-grid">
-      <div>
-        <div class="stat-label">フォロワー数</div>
-        <div id="accFollowers" class="stat-value">-</div>
+    <!-- 0. 自分のTikTokアカウント情報エリア -->
+    <div class="account-dashboard">
+      <div class="account-header">
+        <div>👤 自分のアカウントデータ</div>
+        <div id="accUsername" class="account-name">未設定</div>
       </div>
-      <div>
-        <div class="stat-label">総いいね数</div>
-        <div id="accLikes" class="stat-value">-</div>
+
+      <div class="stats-grid">
+        <div>
+          <div class="stat-label">フォロワー数</div>
+          <div id="accFollowers" class="stat-value">-</div>
+        </div>
+        <div>
+          <div class="stat-label">総いいね数</div>
+          <div id="accLikes" class="stat-value">-</div>
+        </div>
+        <div>
+          <div class="stat-label">公開動画数</div>
+          <div id="accVideos" class="stat-value">-</div>
+        </div>
       </div>
-      <div>
-        <div class="stat-label">公開動画数</div>
-        <div id="accVideos" class="stat-value">-</div>
+
+      <div style="margin-top: 15px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px;">
+        <div style="font-size:12px; margin-bottom:8px; color:#cbd5e1;">🔗 TikTokアカウントURL</div>
+        <input type="text" id="inAccUrl" placeholder="https://www.tiktok.com/@supnohe?is_from_webapp=1&sender_device=pc" style="font-size:13px; padding:8px;">
+        
+        <div style="font-size:12px; margin-top:10px; margin-bottom:6px; color:#cbd5e1;">📊 アカウントの数値データ（直接入力）</div>
+        <div class="input-grid">
+          <input type="number" id="inFollowers" placeholder="フォロワー数">
+          <input type="number" id="inLikes" placeholder="総いいね数">
+          <input type="number" id="inVideos" placeholder="動画数">
+        </div>
+        <button class="acc-btn" style="margin-top:10px; padding:8px 15px; font-size:13px;" onclick="saveAccountData()">アカウントURL・数値を保存・反映</button>
+        <p id="accStatus" style="font-size:12px; color:#38bdf8; margin-top:6px; margin-bottom:0;"></p>
       </div>
     </div>
 
-    <div style="margin-top: 15px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px;">
-      <div style="font-size:12px; margin-bottom:8px; color:#cbd5e1;">🔗 TikTokアカウントURL</div>
-      <input type="text" id="inAccUrl" placeholder="https://www.tiktok.com/@supnohe?is_from_webapp=1&sender_device=pc" style="font-size:13px; padding:8px;">
+    <!-- 1. 参考動画のナレッジ登録エリア -->
+    <div class="card">
+      <h2>📥 1. 参考バズ動画のナレッジ登録</h2>
       
-      <div style="font-size:12px; margin-top:10px; margin-bottom:6px; color:#cbd5e1;">📊 アカウントの数値データ（直接入力）</div>
-      <div class="input-grid">
-        <input type="number" id="inFollowers" placeholder="フォロワー数">
-        <input type="number" id="inLikes" placeholder="総いいね数">
-        <input type="number" id="inVideos" placeholder="動画数">
+      <div class="input-group">
+        <label>🎥 参考動画ファイル（.mp4）をAIに直接見せる【おすすめ】</label>
+        <input type="file" id="refVideoFile" accept="video/*">
+        <button class="sub-btn" style="margin-top:8px;" onclick="addVideoFileKnowledge()">動画ファイルからAI視覚解析・ナレッジ蓄積！</button>
       </div>
-      <button class="acc-btn" style="margin-top:10px; padding:8px 15px; font-size:13px;" onclick="saveAccountData()">アカウントURL・数値を保存・反映</button>
-      <p id="accStatus" style="font-size:12px; color:#38bdf8; margin-top:6px; margin-bottom:0;"></p>
-    </div>
-  </div>
 
-  <!-- 1. 参考動画のナレッジ登録エリア -->
-  <div class="card">
-    <h2>📥 1. 参考バズ動画のナレッジ登録</h2>
-    
-    <div class="input-group">
-      <label>🎥 参考動画ファイル（.mp4）をAIに直接見せる【おすすめ】</label>
-      <input type="file" id="refVideoFile" accept="video/*">
-      <button class="sub-btn" style="margin-top:8px;" onclick="addVideoFileKnowledge()">動画ファイルからAI視覚解析・ナレッジ蓄積！</button>
+      <div class="divider">── または ──</div>
+
+      <div class="input-group">
+        <label>🔗 TikTok動画のURLから登録</label>
+        <input type="text" id="tiktokUrl" placeholder="https://www.tiktok.com/@.../video/...">
+        <button class="sub-btn" style="margin-top:8px; background:#17a2b8;" onclick="addTikTokKnowledge()">URLからテキストナレッジ蓄積</button>
+      </div>
+
+      <p id="refStatus" style="font-size:13px; color:#666; margin-top:8px;"></p>
     </div>
 
-    <div class="divider">── または ──</div>
+    <!-- 2. 自分の動画の診断エリア -->
+    <div class="card">
+      <h2>🎥 2. 自分の動画を診断（蓄積データと比較）</h2>
+      <div class="input-group">
+        <label>自分の動画（診断用）を選択</label>
+        <input type="file" id="myVideo" accept="video/*">
+      </div>
+      <button onclick="analyzeMyVideo()">蓄積ナレッジをもとにAI改善分析スタート！</button>
 
-    <div class="input-group">
-      <label>🔗 TikTok動画のURLから登録</label>
-      <input type="text" id="tiktokUrl" placeholder="https://www.tiktok.com/@.../video/...">
-      <button class="sub-btn" style="margin-top:8px; background:#17a2b8;" onclick="addTikTokKnowledge()">URLからテキストナレッジ蓄積</button>
+      <div id="resultBox" class="result">
+        <h3 style="margin-top:0; color:#0066ff;">💡 AI改善診断レポート</h3>
+        <div id="adviceText" class="advice-content">分析中...</div>
+      </div>
     </div>
 
-    <p id="refStatus" style="font-size:13px; color:#666; margin-top:8px;"></p>
-  </div>
-
-  <!-- 2. 自分の動画の診断エリア -->
-  <div class="card">
-    <h2>🎥 2. 自分の動画を診断（蓄積データと比較）</h2>
-    <div class="input-group">
-      <label>自分の動画（診断用）を選択</label>
-      <input type="file" id="myVideo" accept="video/*">
-    </div>
-    <button onclick="analyzeMyVideo()">蓄積ナレッジをもとにAI改善分析スタート！</button>
-
-    <div id="resultBox" class="result">
-      <h3 style="margin-top:0; color:#0066ff;">💡 AI改善診断レポート</h3>
-      <div id="adviceText" class="advice-content">分析中...</div>
-    </div>
   </div>
 
 </div>
@@ -119,10 +154,31 @@
   const RAPID_API_KEY = "d5d83e4fa6msh08478310af3bfcfp150258jsnf9ffe2098b50";
 
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let currentUser = null;
 
-  // 読み込み時に以前入力したデータ（URLや数値）を自動でセット
-  window.onload = function() {
-    const saved = JSON.parse(localStorage.getItem('my_tiktok_acc') || '{}');
+  // 初期化時にログイン状態をチェック
+  window.onload = async function() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      showAppScreen();
+    } else {
+      showAuthScreen();
+    }
+  };
+
+  function showAuthScreen() {
+    document.getElementById('authSection').style.display = 'block';
+    document.getElementById('appSection').style.display = 'none';
+  }
+
+  function showAppScreen() {
+    document.getElementById('authSection').style.display = 'none';
+    document.getElementById('appSection').style.display = 'block';
+    document.getElementById('userEmailDisplay').innerText = currentUser.email;
+
+    // ユーザー別のLocalStorage設定呼び出し
+    const saved = JSON.parse(localStorage.getItem(`my_tiktok_acc_${currentUser.id}`) || '{}');
     if (saved.url) document.getElementById('inAccUrl').value = saved.url;
     if (saved.followers) document.getElementById('inFollowers').value = saved.followers;
     if (saved.likes) document.getElementById('inLikes').value = saved.likes;
@@ -134,15 +190,55 @@
       document.getElementById('accLikes').innerText = Number(saved.likes || 0).toLocaleString();
       document.getElementById('accVideos').innerText = Number(saved.videos || 0).toLocaleString();
     }
-  };
+  }
+
+  // 🔑 認証処理 (新規登録)
+  async function handleSignUp() {
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPassword').value;
+    const status = document.getElementById('authStatus');
+
+    if (!email || !password) return alert('メールアドレスとパスワードを入力してください');
+
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) {
+      status.innerText = "❌ 登録エラー: " + error.message;
+    } else {
+      alert("✅ 登録が完了しました！メールが送信された場合は確認してログインしてください。");
+    }
+  }
+
+  // 🔑 認証処理 (ログイン)
+  async function handleSignIn() {
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPassword').value;
+    const status = document.getElementById('authStatus');
+
+    if (!email || !password) return alert('メールアドレスとパスワードを入力してください');
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+      status.innerText = "❌ ログインエラー: " + error.message;
+    } else {
+      currentUser = data.user;
+      showAppScreen();
+    }
+  }
+
+  // 🔑 認証処理 (ログアウト)
+  async function handleSignOut() {
+    await supabaseClient.auth.signOut();
+    currentUser = null;
+    showAuthScreen();
+  }
 
   function saveAccountData() {
+    if (!currentUser) return;
     const rawUrl = document.getElementById('inAccUrl').value;
     const followers = document.getElementById('inFollowers').value || 0;
     const likes = document.getElementById('inLikes').value || 0;
     const videos = document.getElementById('inVideos').value || 0;
 
-    // URLから @ユーザー名 部分を自動抽出
     let username = "@supnohe";
     if (rawUrl) {
       const match = rawUrl.match(/@([a-zA-Z0-9_\.\-]+)/);
@@ -150,7 +246,7 @@
     }
 
     const accData = { url: rawUrl, username, followers, likes, videos };
-    localStorage.setItem('my_tiktok_acc', JSON.stringify(accData));
+    localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
     document.getElementById('accUsername').innerText = username;
     document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
@@ -224,9 +320,10 @@
       const titleMatch = aiText.split('\n')[0].replace('動画タイトル:', '').replace('タイトル:', '').trim();
       const autoTitle = titleMatch || `動画解析: ${file.name}`;
 
+      // user_id を追加してログイン中のユーザーデータとして保存
       const { error: dbError } = await supabaseClient
         .from('reference_videos')
-        .insert([{ title: autoTitle, features: aiText }]);
+        .insert([{ title: autoTitle, features: aiText, user_id: currentUser.id }]);
 
       if (dbError) throw new Error(dbError.message);
 
@@ -289,9 +386,10 @@ ${JSON.stringify(metaData, null, 2)}
       const data = await response.json();
       const features = data.candidates[0].content.parts[0].text;
 
+      // user_id を追加してログイン中のユーザーデータとして保存
       const { error: dbError } = await supabaseClient
         .from('reference_videos')
-        .insert([{ title: originalTitle, features: features }]);
+        .insert([{ title: originalTitle, features: features, user_id: currentUser.id }]);
 
       if (dbError) throw new Error(dbError.message);
 
@@ -318,6 +416,7 @@ ${JSON.stringify(metaData, null, 2)}
     adviceText.innerText = "⏳ 過去の蓄積ナレッジを取得し、比較診断中...";
 
     try {
+      // ログイン中ユーザーのデータのみを取得（RLS有効化のため自動でフィルタされます）
       const { data: dbData } = await supabaseClient.from('reference_videos').select('title, features');
       
       let knowledgeText = "";
@@ -393,11 +492,13 @@ ${knowledgeText}
         const rawAdvice = data.candidates[0].content.parts[0].text;
         adviceText.innerText = rawAdvice;
 
+        // user_id を追加してログイン中のユーザーデータとして保存
         await supabaseClient.from('video_analyses').insert([
           {
             title: `単独動画診断 (${new Date().toLocaleString()})`,
             target_video_url: myFile.name,
-            ai_advice: rawAdvice
+            ai_advice: rawAdvice,
+            user_id: currentUser.id
           }
         ]);
       } else {
