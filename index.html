@@ -299,8 +299,6 @@
 <script>
   const SUPABASE_URL = "https://kbklsruhvltokvtizzcl.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtia2xzcnVodmx0b2t2dGl6emNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwOTUyNDIsImV4cCI6MjEwMjY3MTI0Mn0.Q4HRm9pVF0XyAGHgv-7UQEjenSIr1gofWuTLAUY2bEI";
-  
-  // 🔑 ご提示いただいたAPIキーを適用済みです
   const GEMINI_API_KEY = "AQ.Ab8RN6L6suqxHPMu3saflQrSXHP0-T2pdVKI6nZCQPQiJfmzkw";
 
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -543,11 +541,12 @@
     });
   }
 
+  // 🤖 完全互換モデル名（gemini-2.0-flash）で安全呼び出し
   async function callGemini(promptText, inlineData = null) {
     const parts = [{ text: promptText }];
     if (inlineData) parts.push({ inline_data: inlineData });
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts }] })
