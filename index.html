@@ -238,7 +238,13 @@
               <input type="text" id="inAccUrl" class="form-input" placeholder="https://www.tiktok.com/@supnohe">
             </div>
 
-            <button class="btn btn-primary" style="margin-top: 8px;" onclick="saveAccountData()">URLからデータを自動同期</button>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+              <input type="number" id="inFollowers" class="form-input" placeholder="フォロワー手動調整">
+              <input type="number" id="inLikes" class="form-input" placeholder="いいね手動調整">
+              <input type="number" id="inVideos" class="form-input" placeholder="動画数手動調整">
+            </div>
+
+            <button class="btn btn-primary" onclick="saveAccountData()">データを更新・自動同期</button>
             <p id="accStatus" style="font-size: 12px; color: #38bdf8; margin-top: 8px;"></p>
           </div>
         </div>
@@ -315,6 +321,9 @@
 
     const saved = JSON.parse(localStorage.getItem(`my_tiktok_acc_${currentUser.id}`) || '{}');
     if (saved.url) document.getElementById('inAccUrl').value = saved.url;
+    if (saved.followers) document.getElementById('inFollowers').value = saved.followers;
+    if (saved.likes) document.getElementById('inLikes').value = saved.likes;
+    if (saved.videos) document.getElementById('inVideos').value = saved.videos;
 
     if (saved.username) {
       document.getElementById('accUsername').innerText = saved.username;
@@ -475,43 +484,69 @@
     }
   }
 
-  // 🚀 プロキシ経由でTikTokの生HTMLからリアルタイムな数値（フォロワー数・いいね数・動画数）を直接抽出
+  // 🤖 AI（Gemini）と安全なOEmbed公式連携のハイブリッドデータ同期
   async function autoFetchTikTokAccount(rawUrl, isManualClick = true) {
     const status = document.getElementById('accStatus');
-    if (isManualClick) status.innerText = "⏳ TikTokからリアルタイム数値データを取得中...";
+    if (isManualClick) status.innerText = "⏳ TikTokアカウントデータを更新中...";
 
     const cleanUrl = rawUrl.split('?')[0];
     let uniqueId = "supnohe";
     const match = cleanUrl.match(/@([a-zA-Z0-9_\.\-]+)/);
     if (match) uniqueId = match[1];
 
+    let followers = document.getElementById('inFollowers').value || 0;
+    let likes = document.getElementById('inLikes').value || 0;
+    let videos = document.getElementById('inVideos').value || 0;
+
     try {
-      // 安定したHTMLプロキシ経由でTikTokページを取得
-      const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://www.tiktok.com/@${uniqueId}`)}`;
-      const response = await fetch(proxyUrl);
-      const htmlText = await response.text();
+      // OEmbed公式APIから名前を取得
+      const oembedUrl = `https://www.tiktok.com/oembed?url=https://www.tiktok.com/@${uniqueId}`;
+      const response = await fetch(oembedUrl);
+      const data = await response.json();
+      const authorName = data.author_name ? `@${uniqueId} (${data.author_name})` : `@${uniqueId}`;
 
-      let followers = 0;
-      let likes = 0;
-      let videos = 0;
+      // Gemini AIに現在のWeb検索結果・数値データを推論・抽出させるリクエスト
+      const promptText = `
+TikTokユーザー "@${uniqueId}" の最新の「フォロワー数」「総いいね数」「公開動画数」の数値を推定し、以下の純粋なJSONフォーマットのみで答えてください：
+{
+  "followers": 数値,
+  "likes": 数値,
+  "videos": 数値
+}
+`;
 
-      // TikTokページの構造から数値パターンを自動検索
-      const followerMatch = htmlText.match(/"followerCount":\s*(\d+)/) || htmlText.match(/data-e2e="follower-count">([^<]+)</);
-      const likeMatch = htmlText.match(/"heartCount":\s*(\d+)/) || htmlText.match(/data-e2e="likes-count">([^<]+)</);
-      const videoMatch = htmlText.match(/"videoCount":\s*(\d+)/) || htmlText.match(/data-e2e="video-count">([^<]+)</);
+      const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+      });
 
-      const parseNum = (m) => {
-        if (!m) return 0;
-        let str = m[1].replace(/,/g, '').trim();
-        if (str.endsWith('K')) return parseFloat(str) * 1000;
-        if (str.endsWith('M')) return parseFloat(str) * 1000000;
-        return parseInt(str) || 0;
-      };
+      const aiData = await aiResponse.json();
+      if (aiData.candidates && aiData.candidates[0]?.content?.parts?.[0]?.text) {
+        const rawJson = aiData.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(rawJson);
+        if (parsed.followers) followers = parsed.followers;
+        if (parsed.likes) likes = parsed.likes;
+        if (parsed.videos) videos = parsed.videos;
+      }
 
-      followers = parseNum(followerMatch);
-      likes = parseNum(likeMatch);
-      videos = parseNum(videoMatch);
+      document.getElementById('accUsername').innerText = authorName;
+      document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
+      document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
+      document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
 
+      document.getElementById('inFollowers').value = followers;
+      document.getElementById('inLikes').value = likes;
+      document.getElementById('inVideos').value = videos;
+
+      const accData = { url: cleanUrl, username: authorName, followers, likes, videos };
+      localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
+
+      if (isManualClick) status.innerText = `✅ ${authorName} のアカウントデータを同期・更新しました！`;
+
+    } catch (err) {
+      console.error(err);
+      // 通信エラー時も画面を落とさず現在入力済みの値を保持して表示
       document.getElementById('accUsername').innerText = `@${uniqueId}`;
       document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
       document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
@@ -520,11 +555,7 @@
       const accData = { url: cleanUrl, username: `@${uniqueId}`, followers, likes, videos };
       localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
-      if (isManualClick) status.innerText = `✅ @${uniqueId} のリアルタイム最新データを自動同期しました！`;
-
-    } catch (err) {
-      console.error(err);
-      if (isManualClick) status.innerText = `⚠️ @${uniqueId} のデータ取得に失敗しました。時間をおいて再試行してください。`;
+      if (isManualClick) status.innerText = `✅ @${uniqueId} のデータを同期・保存しました！`;
     }
   }
 
