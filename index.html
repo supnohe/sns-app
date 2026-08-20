@@ -475,13 +475,15 @@
     }
   }
 
-  // ⚡ TikTokリアルタイム統計API（Countik）からデータを取得
+  // ⚡ クエリパラメータを除去して正しいユーザーIDを取り出す処理
   async function autoFetchTikTokAccount(rawUrl, isManualClick = true) {
     const status = document.getElementById('accStatus');
     if (isManualClick) status.innerText = "⏳ TikTokから最新アカウントデータを取得中...";
 
+    // ?is_from_webapp... などの不要部分を削る
+    const cleanUrl = rawUrl.split('?')[0];
     let uniqueId = "supnohe";
-    const match = rawUrl.match(/@([a-zA-Z0-9_\.\-]+)/);
+    const match = cleanUrl.match(/@([a-zA-Z0-9_\.\-]+)/);
     if (match) uniqueId = match[1];
 
     try {
@@ -498,17 +500,17 @@
         document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
         document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
 
-        const accData = { url: rawUrl, username: `@${uniqueId}`, followers, likes, videos };
+        const accData = { url: cleanUrl, username: `@${uniqueId}`, followers, likes, videos };
         localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
         if (isManualClick) status.innerText = `✅ @${uniqueId} のリアルタイム最新データを自動同期しました！`;
       } else {
-        throw new Error("アカウントの取得に失敗しました");
+        throw new Error("アカウントが見つかりませんでした");
       }
 
     } catch (err) {
       console.error(err);
-      if (isManualClick) status.innerText = "⚠️ データの取得に失敗しました。ユーザー名(@supnohe)を確認してください。";
+      if (isManualClick) status.innerText = `⚠️ @${uniqueId} の取得に失敗しました。ユーザーIDを確認してください。`;
     }
   }
 
