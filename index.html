@@ -40,12 +40,13 @@
       background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent 40%),
                   radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.15), transparent 40%),
                   var(--bg-primary);
+      padding: 20px;
     }
 
     .auth-box {
       width: 100%;
       max-width: 420px;
-      padding: 40px;
+      padding: 40px 24px;
       background: rgba(30, 41, 59, 0.7);
       backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.1);
@@ -95,7 +96,7 @@
     .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
 
     .app-layout { display: flex; width: 100vw; min-height: 100vh; }
-    .sidebar { width: 260px; background: #090d16; border-right: 1px solid var(--border); padding: 24px; display: flex; flex-direction: column; justify-content: space-between; }
+    .sidebar { width: 260px; background: #090d16; border-right: 1px solid var(--border); padding: 24px; display: flex; flex-direction: column; justify-content: space-between; flex-shrink: 0; }
     .sidebar-brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 16px; margin-bottom: 32px; }
     .user-profile { padding: 12px; background: var(--bg-surface); border-radius: 12px; margin-top: auto; margin-bottom: 16px; }
     .user-email { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -106,11 +107,11 @@
     .content-subtitle { color: var(--text-muted); font-size: 14px; }
     .grid-layout { display: grid; gap: 24px; max-width: 900px; }
     .dash-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.3); }
-    .card-header { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 12px; }
+    .card-header { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 12px; flex-wrap: wrap; }
 
     .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
     .stat-card { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); padding: 16px; border-radius: 12px; text-align: center; }
-    .stat-num { font-size: 20px; font-weight: 700; color: #38bdf8; margin-top: 4px; }
+    .stat-num { font-size: 20px; font-weight: 700; color: #38bdf8; margin-top: 4px; word-break: break-all; }
     .sub-section { background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 18px; }
 
     .divider-text { text-align: center; color: var(--text-muted); font-size: 12px; margin: 16px 0; position: relative; }
@@ -119,6 +120,23 @@
 
     .result-box { background: #090d16; border: 1px solid var(--accent); border-radius: 12px; padding: 20px; margin-top: 20px; display: none; }
     .advice-text { white-space: pre-wrap; font-size: 14px; line-height: 1.7; color: #e2e8f0; }
+
+    /* 📱 スマホ用レスポンシブスタイル */
+    @media (max-width: 768px) {
+      .app-layout { flex-direction: column; }
+      .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 16px 20px;
+      }
+      .sidebar-brand { margin-bottom: 12px; }
+      .user-profile { margin-top: 8px; margin-bottom: 12px; }
+      .main-content { padding: 20px 16px; }
+      .stats-row { grid-template-columns: 1fr; gap: 10px; }
+      .card-header span:last-child { margin-left: 0 !important; width: 100%; margin-top: 4px; }
+      .content-title { font-size: 22px; }
+    }
   </style>
 </head>
 <body>
@@ -475,7 +493,6 @@
     }
   }
 
-  // 🚀 自作Vercel Serverless Function (/api/tiktok) を使った高精度データ取得
   async function autoFetchTikTokAccount(rawUrl, isManualClick = true) {
     const status = document.getElementById('accStatus');
     if (isManualClick) status.innerText = "⏳ TikTokから本物のリアルタイムデータを同期中...";
@@ -503,7 +520,7 @@
         const accData = { url: cleanUrl, username: displayName, followers, likes, videos };
         localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
-        if (isManualClick) status.innerText = `✅ ${displayName} のリアルタイム最新データを100%正確に同期しました！`;
+        if (isManualClick) status.innerText = `✅ ${displayName} のリアルタイム最新データを正確に同期しました！`;
       } else {
         throw new Error("データ取得失敗");
       }
