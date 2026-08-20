@@ -255,6 +255,19 @@
           </div>
         </div>
 
+        <!-- 📈 アカウント過去〜現在の傾向AI分析 -->
+        <div class="dash-card">
+          <div class="card-header"><span>📊</span> 過去〜現在の伸び・バズ傾向AI診断</div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">過去1年間のデータ（閲覧数、伸び率、ファン属性など）を基にしたアカウント分析レポート</p>
+
+          <button class="btn btn-primary" onclick="analyzeAccountTrends()">最新のアカウント傾向をAI分析する</button>
+
+          <div id="trendResultBox" class="result-box">
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">📊 アカウント全体傾向・戦略レポート</div>
+            <div id="trendAdviceText" class="advice-text">分析中...</div>
+          </div>
+        </div>
+
         <!-- 1. 参考動画ナレッジ蓄積 -->
         <div class="dash-card">
           <div class="card-header"><span>📥</span> 1. バズ動画ナレッジ蓄積</div>
@@ -276,19 +289,19 @@
           <p id="refStatus" style="font-size: 12px; color: var(--text-muted); margin-top: 8px;"></p>
         </div>
 
-        <!-- 2. 自分の動画診断 -->
+        <!-- 2. 自分の動画診断 & 投稿文・ハッシュタグ生成 -->
         <div class="dash-card">
-          <div class="card-header"><span>🎥</span> 2. 自社動画のAI改善診断</div>
+          <div class="card-header"><span>🎥</span> 2. 自社動画のAI改善診断 & 投稿文提案</div>
 
           <div class="form-group">
-            <label>診断用動画を選択</label>
+            <label>診断・投稿文作成用の動画を選択</label>
             <input type="file" id="myVideo" class="form-input" accept="video/*">
           </div>
 
-          <button class="btn btn-primary" onclick="analyzeMyVideo()">AI動画診断を実行</button>
+          <button class="btn btn-primary" onclick="analyzeMyVideo()">AI動画診断 & 投稿文・ハッシュタグ提案を実行</button>
 
           <div id="resultBox" class="result-box">
-            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">💡 AI診断分析レポート</div>
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">💡 AI診断分析 & 投稿作成レポート</div>
             <div id="adviceText" class="advice-text">分析中...</div>
           </div>
         </div>
@@ -541,7 +554,6 @@
     });
   }
 
-  // 🤖 指定された最新モデル（gemini-3.6-flash）で呼び出し
   async function callGemini(promptText, inlineData = null) {
     const parts = [{ text: promptText }];
     if (inlineData) parts.push({ inline_data: inlineData });
@@ -557,6 +569,64 @@
       throw new Error(data.error?.message || `AI通信エラー (Status ${res.status})`);
     }
     return data.candidates[0].content.parts[0].text;
+  }
+
+  // 📊 ② アカウント過去〜現在の伸び・バズ傾向AI分析機能
+  async function analyzeAccountTrends() {
+    const resultBox = document.getElementById('trendResultBox');
+    const adviceText = document.getElementById('trendAdviceText');
+
+    resultBox.style.display = "block";
+    adviceText.innerText = "⏳ 過去データ（閲覧数・投稿ヒット率・ファン属性）を総合分析中...";
+
+    try {
+      const accountDataSummary = `
+【アカウント統計データ（@supnohe）】
+- フォロワー数: 約1.91万人（1年間で5,500人規模から急速成長）
+- フォロワー属性: 女性 53%, 男性 44%, その他 3%
+- フォロワー主要地域: 日本 29.8%, フィリピン 4.5%, ブラジル 3.2%
+- 平均再生数: 16,400回 / 最大再生数: 38.2万回
+- 平均いいね数: 1,022件 / 最大いいね数: 14,912件
+
+【過去のトップヒット動画傾向】
+1. ジョングク（BTS）フォロー関連動画: 2,229,852回再生 / 101,723いいね / 302シェア
+2. BE:FIRST SOTA関連のダンス動画: 841,635回再生 / 57,701いいね / 543シェア
+3. 柔軟性・音ハメダンス動画: 758,549回再生 / 91,106いいね / 2,953シェア
+4. edhiii boi トラックダンス動画: 389,087回再生 / 25,311いいね / 514シェア
+5. ロックダンス（Locking）動画: 226,025回再生 / 10,868いいね / 790シェア
+`;
+
+      const promptText = `
+あなたはプロのSNS動画マーケター・アナリストです。
+以下に記載されたTikTokアカウント（@supnohe）の【実績データ】を分析し、アカウントの「過去から最近の傾向」「今のポジショニング・強み」「今後さらに伸びるための具体的施策」をレポートしてください。
+
+【実績データ】
+${accountDataSummary}
+
+出力フォーマット（見出し・記号は変えずこのまま出力してください）：
+
+1．過去〜現在の伸びと傾向分析
+・[過去から現在にかけてどのように伸びているか]
+・[どんな動画が圧倒的にバズっているか（有名アーティスト・ダンスジャンルなど）]
+・[フォロワー層（性別・地域）の特徴]
+
+2．今のアカウントの強みと課題
+・[強み（ダンス技術、音楽選曲、バイラル力）]
+・[課題（投稿頻度のムラやエンゲージメント率の維持など）]
+
+3．今後さらにバズらせるための具体的アクション案
+・[次回狙うべきアーティスト・楽曲ジャンル]
+・[海外視聴者・女性層を意識した演出アイデア]
+・[保存・シェア数を最大化するための工夫]
+`;
+
+      const rawAdvice = await callGemini(promptText);
+      adviceText.innerText = rawAdvice;
+
+    } catch (error) {
+      console.error(error);
+      adviceText.innerText = "❌ エラー: " + error.message;
+    }
   }
 
   async function addVideoFileKnowledge() {
@@ -638,6 +708,7 @@ URL: ${rawUrl}
     }
   }
 
+  // ① 投稿文＆ハッシュタグ提案を組み込んだ動画診断機能
   async function analyzeMyVideo() {
     const myFile = document.getElementById('myVideo').files[0];
     const resultBox = document.getElementById('resultBox');
@@ -646,7 +717,7 @@ URL: ${rawUrl}
     if (!myFile) return alert("診断用動画を選択してください");
 
     resultBox.style.display = "block";
-    adviceText.innerText = "⏳ ナレッジ比較・AI診断中...";
+    adviceText.innerText = "⏳ ナレッジ比較・AI診断・投稿文生成中...";
 
     try {
       const { data: dbData } = await supabaseClient.from('reference_videos').select('title, features');
@@ -662,12 +733,12 @@ URL: ${rawUrl}
 
       const promptText = `
 あなたはプロのSNS動画マーケターです。
-以下に登録されている【過去のお手本バズ動画ナレッジ】を基準として、添付された【自分の動画】を評価・診断してください。
+以下に登録されている【過去のお手本バズ動画ナレッジ】を基準として、添付された【自分の動画】を評価・診断し、さらにTikTokにそのまま投稿できるおすすめの「キャプション（投稿文）」と「ハッシュタグ」を作成してください。
 
 【過去のお手本バズ動画ナレッジ】
 ${knowledgeText}
 
-以下のフォーマット（記号・見出し）を一切変更せず、完全にその通りに出力してください。余計な前置きや後置きの挨拶は不要です。
+以下のフォーマット（見出し・記号）をそのまま維持して出力してください：
 
 1．冒頭の改善点
 ① [箇条書き1]
@@ -687,15 +758,15 @@ ${knowledgeText}
 ・[詳細説明1]
 ・[詳細説明2]
 
-3．視覚効果・テキストテロップ・キャプション・ハッシュタグ
-① [箇条書き1]
-② [箇条書き2]
-③ [箇条書き3]
+3．おすすめ投稿文・キャプション案＆ハッシュタグ提案（そのままコピーして使える形式）
+【投稿文パターン1（共感・コメント誘発型）】
+[投稿文テキスト]
 
-改善策詳細
-・[詳細説明1]
-・[詳細説明2]
-・おすすめハッシュタグ: #〇〇 #〇〇 #〇〇 #〇〇 #〇〇
+【投稿文パターン2（トレンド・短文フック型）】
+[投稿文テキスト]
+
+【おすすめハッシュタグセット】
+#〇〇 #〇〇 #〇〇 #〇〇 #〇〇 #〇〇 #〇〇 #〇〇
 
 4．次回の動画に向けての改善点まとめ
 ・[まとめ1]
@@ -711,7 +782,7 @@ ${knowledgeText}
 
       await supabaseClient.from('video_analyses').insert([
         {
-          title: `単独動画診断 (${new Date().toLocaleString()})`,
+          title: `動画診断・投稿文提案 (${new Date().toLocaleString()})`,
           target_video_url: myFile.name,
           ai_advice: rawAdvice,
           user_id: currentUser.id
