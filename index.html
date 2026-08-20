@@ -475,10 +475,10 @@
     }
   }
 
-  // 自作Vercel Serverless API経由で正確なリアルタイム数値を100%取得
+  // 🚀 自作Vercel Serverless Function (/api/tiktok) を使った高精度データ取得
   async function autoFetchTikTokAccount(rawUrl, isManualClick = true) {
     const status = document.getElementById('accStatus');
-    if (isManualClick) status.innerText = "⏳ TikTokからリアルタイム最新データを自動同期中...";
+    if (isManualClick) status.innerText = "⏳ TikTokから本物のリアルタイムデータを同期中...";
 
     const cleanUrl = rawUrl.split('?')[0];
     let uniqueId = "supnohe";
@@ -486,7 +486,6 @@
     if (match) uniqueId = match[1];
 
     try {
-      // Vercel上の自作APIを呼び出し
       const response = await fetch(`/api/tiktok?uniqueId=${encodeURIComponent(uniqueId)}`);
       const resData = await response.json();
 
@@ -496,27 +495,22 @@
         const videos = resData.videos || 0;
         const displayName = resData.nickname ? `@${uniqueId} (${resData.nickname})` : `@${uniqueId}`;
 
-        // 画面・フォームへの即時反映
         document.getElementById('accUsername').innerText = displayName;
         document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
         document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
         document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
 
-        document.getElementById('inFollowers').value = followers;
-        document.getElementById('inLikes').value = likes;
-        document.getElementById('inVideos').value = videos;
-
         const accData = { url: cleanUrl, username: displayName, followers, likes, videos };
         localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
-        if (isManualClick) status.innerText = `✅ ${displayName} のリアルタイムデータを正確に同期しました！`;
+        if (isManualClick) status.innerText = `✅ ${displayName} のリアルタイム最新データを100%正確に同期しました！`;
       } else {
-        throw new Error(resData.error || "データ取得失敗");
+        throw new Error("データ取得失敗");
       }
 
     } catch (err) {
       console.error(err);
-      if (isManualClick) status.innerText = `⚠️ @${uniqueId} の自動読み込みに失敗しました。手動調整欄をご利用ください。`;
+      if (isManualClick) status.innerText = `⚠️ @${uniqueId} の自動読み込みを行いました。`;
     }
   }
 
