@@ -31,7 +31,7 @@
       display: flex;
     }
 
-    /* --- 🔑 ログイン画面（SaaSスタイル） --- */
+    /* --- 🔑 認証画面 --- */
     .auth-wrapper {
       display: flex;
       justify-content: center;
@@ -151,7 +151,7 @@
       background: rgba(255, 255, 255, 0.1);
     }
 
-    /* --- 🚀 メインダッシュボード（プロフェッショナルレイアウト） --- */
+    /* --- 🚀 メインダッシュボード --- */
     .app-layout {
       display: flex;
       width: 100vw;
@@ -307,38 +307,41 @@
 </head>
 <body>
 
-  <!-- 🔒 1. 大手風ログイン・新規登録画面 -->
+  <!-- 🔒 1. メールOTP（二段階コード）認証画面 -->
   <div id="authSection" class="auth-wrapper">
     <div class="auth-box">
       <div class="auth-logo">
         <div class="auth-logo-badge">⚡</div>
         <div class="auth-title">SNS Analytics AI</div>
-        <div class="auth-subtitle">アカウントにログインして開始</div>
+        <div class="auth-subtitle">メール認証コードでログイン / 会員登録</div>
       </div>
 
-      <div class="form-group">
-        <label>メールアドレス</label>
-        <input type="email" id="authEmail" class="form-input" placeholder="name@company.com">
+      <!-- ステップ1: メール入力 -->
+      <div id="stepSendOtp">
+        <div class="form-group">
+          <label>メールアドレス</label>
+          <input type="email" id="authEmail" class="form-input" placeholder="name@company.com">
+        </div>
+        <button class="btn btn-primary" onclick="handleSendOtp()">認証コードを送信する</button>
       </div>
 
-      <div class="form-group">
-        <label>パスワード</label>
-        <input type="password" id="authPassword" class="form-input" placeholder="••••••••">
+      <!-- ステップ2: 6桁コード入力（初期状態は非表示） -->
+      <div id="stepVerifyOtp" style="display: none;">
+        <div class="form-group">
+          <label>メールに届いた6桁の認証コード</label>
+          <input type="text" id="authOtpCode" class="form-input" placeholder="123456" maxlength="6" style="text-align:center; font-size:18px; letter-spacing:4px;">
+        </div>
+        <button class="btn btn-primary" onclick="handleVerifyOtp()">認証してログイン</button>
+        <button class="btn btn-secondary" style="margin-top:8px; font-size:12px;" onclick="resetAuthStep()">メールアドレスを入力し直す</button>
       </div>
 
-      <div style="display: flex; gap: 10px; margin-top: 24px;">
-        <button class="btn btn-primary" onclick="handleSignIn()">ログイン</button>
-        <button class="btn btn-secondary" onclick="handleSignUp()">新規登録</button>
-      </div>
-
-      <p id="authStatus" style="font-size: 12px; color: #f87171; margin-top: 16px; text-align: center;"></p>
+      <p id="authStatus" style="font-size: 12px; margin-top: 16px; text-align: center;"></p>
     </div>
   </div>
 
   <!-- 🚀 2. プロ仕様メインダッシュボード -->
   <div id="appSection" class="app-layout" style="display: none;">
 
-    <!-- サイドバー -->
     <div class="sidebar">
       <div>
         <div class="sidebar-brand">
@@ -362,7 +365,6 @@
       </div>
     </div>
 
-    <!-- メインエリア -->
     <div class="main-content">
       <div class="content-header">
         <div class="content-title">Dashboard</div>
@@ -479,6 +481,7 @@
   function showAuthScreen() {
     document.getElementById('authSection').style.display = 'flex';
     document.getElementById('appSection').style.display = 'none';
+    resetAuthStep();
   }
 
   function showAppScreen() {
@@ -500,31 +503,55 @@
     }
   }
 
-  async function handleSignUp() {
+  function resetAuthStep() {
+    document.getElementById('stepSendOtp').style.display = 'block';
+    document.getElementById('stepVerifyOtp').style.display = 'none';
+    document.getElementById('authStatus').innerText = '';
+  }
+
+  // 📧 1. 認証コード（OTP）を送信
+  async function handleSendOtp() {
     const email = document.getElementById('authEmail').value;
-    const password = document.getElementById('authPassword').value;
     const status = document.getElementById('authStatus');
 
-    if (!email || !password) return alert('メールアドレスとパスワードを入力してください');
+    if (!email) return alert('メールアドレスを入力してください');
 
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    status.style.color = '#38bdf8';
+    status.innerText = '⏳ 認証コードをメール送信中...';
+
+    const { error } = await supabaseClient.auth.signInWithOtp({ email });
+
     if (error) {
-      status.innerText = "❌ 登録エラー: " + error.message;
+      status.style.color = '#f87171';
+      status.innerText = '❌ エラー: ' + error.message;
     } else {
-      alert("✅ 登録が完了しました！メールを確認してログインしてください。");
+      status.style.color = '#4ade80';
+      status.innerText = '✅ メールに6桁の認証コードを送信しました！';
+      document.getElementById('stepSendOtp').style.display = 'none';
+      document.getElementById('stepVerifyOtp').style.display = 'block';
     }
   }
 
-  async function handleSignIn() {
+  // 🔑 2. 認証コード（OTP）を検証してログイン
+  async function handleVerifyOtp() {
     const email = document.getElementById('authEmail').value;
-    const password = document.getElementById('authPassword').value;
+    const token = document.getElementById('authOtpCode').value;
     const status = document.getElementById('authStatus');
 
-    if (!email || !password) return alert('メールアドレスとパスワードを入力してください');
+    if (!token) return alert('6桁の認証コードを入力してください');
 
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    status.style.color = '#38bdf8';
+    status.innerText = '⏳ コードを検証中...';
+
+    const { data, error } = await supabaseClient.auth.verifyOtp({
+      email,
+      token,
+      type: 'email'
+    });
+
     if (error) {
-      status.innerText = "❌ ログインエラー: " + error.message;
+      status.style.color = '#f87171';
+      status.innerText = '❌ 認証失敗: コードが間違っているか期限切れです';
     } else {
       currentUser = data.user;
       showAppScreen();
