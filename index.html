@@ -31,7 +31,6 @@
       display: flex;
     }
 
-    /* --- 🔑 認証画面 --- */
     .auth-wrapper {
       display: flex;
       justify-content: center;
@@ -54,269 +53,73 @@
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
 
-    .auth-logo {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
+    .auth-logo { text-align: center; margin-bottom: 30px; }
     .auth-logo-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 48px;
-      height: 48px;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 48px; height: 48px;
       background: linear-gradient(135deg, #6366f1, #3b82f6);
-      border-radius: 12px;
-      margin-bottom: 12px;
-      font-weight: bold;
-      font-size: 20px;
+      border-radius: 12px; margin-bottom: 12px; font-weight: bold; font-size: 20px;
       box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
     }
 
-    .auth-title {
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: 6px;
-    }
-
-    .auth-subtitle {
-      font-size: 14px;
-      color: var(--text-muted);
-    }
-
-    .form-group {
-      margin-bottom: 18px;
-      text-align: left;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      color: #cbd5e1;
-      margin-bottom: 6px;
-    }
-
+    .auth-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+    .auth-subtitle { font-size: 14px; color: var(--text-muted); }
+    .form-group { margin-bottom: 18px; text-align: left; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; }
     .form-input {
-      width: 100%;
-      padding: 12px 16px;
-      background: var(--input-bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: #fff;
-      font-size: 14px;
-      outline: none;
-      transition: all 0.2s;
+      width: 100%; padding: 12px 16px; background: var(--input-bg);
+      border: 1px solid var(--border); border-radius: 10px; color: #fff; font-size: 14px; outline: none; transition: all 0.2s;
     }
-
-    .form-input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-    }
+    .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); }
 
     .btn {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     }
+    .btn-primary { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+    .btn-primary:hover { background: linear-gradient(135deg, #4f46e5, #4338ca); transform: translateY(-1px); }
+    .btn-secondary { background: rgba(255, 255, 255, 0.05); color: #e2e8f0; border: 1px solid var(--border); }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
 
-    .btn-primary {
-      background: linear-gradient(135deg, #6366f1, #4f46e5);
-      color: white;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-    }
+    .app-layout { display: flex; width: 100vw; min-height: 100vh; }
+    .sidebar { width: 260px; background: #090d16; border-right: 1px solid var(--border); padding: 24px; display: flex; flex-direction: column; justify-content: space-between; }
+    .sidebar-brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 16px; margin-bottom: 32px; }
+    .user-profile { padding: 12px; background: var(--bg-surface); border-radius: 12px; margin-top: auto; margin-bottom: 16px; }
+    .user-email { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    .btn-primary:hover {
-      background: linear-gradient(135deg, #4f46e5, #4338ca);
-      transform: translateY(-1px);
-    }
+    .main-content { flex: 1; overflow-y: auto; padding: 40px; background: var(--bg-primary); }
+    .content-header { margin-bottom: 32px; }
+    .content-title { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+    .content-subtitle { color: var(--text-muted); font-size: 14px; }
+    .grid-layout { display: grid; gap: 24px; max-width: 900px; }
+    .dash-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.3); }
+    .card-header { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 12px; }
 
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.05);
-      color: #e2e8f0;
-      border: 1px solid var(--border);
-    }
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stat-card { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); padding: 16px; border-radius: 12px; text-align: center; }
+    .stat-num { font-size: 20px; font-weight: 700; color: #38bdf8; margin-top: 4px; }
+    .sub-section { background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 18px; }
 
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
+    .divider-text { text-align: center; color: var(--text-muted); font-size: 12px; margin: 16px 0; position: relative; }
+    .divider-text::before, .divider-text::after { content: ""; position: absolute; top: 50%; width: 40%; height: 1px; background: var(--border); }
+    .divider-text::before { left: 0; } .divider-text::after { right: 0; }
 
-    /* --- 🚀 メインダッシュボード --- */
-    .app-layout {
-      display: flex;
-      width: 100vw;
-      min-height: 100vh;
-    }
-
-    .sidebar {
-      width: 260px;
-      background: #090d16;
-      border-right: 1px solid var(--border);
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-
-    .sidebar-brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-weight: 700;
-      font-size: 16px;
-      margin-bottom: 32px;
-    }
-
-    .user-profile {
-      padding: 12px;
-      background: var(--bg-surface);
-      border-radius: 12px;
-      margin-top: auto;
-      margin-bottom: 16px;
-    }
-
-    .user-email {
-      font-size: 12px;
-      color: var(--text-muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .main-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 40px;
-      background: var(--bg-primary);
-    }
-
-    .content-header {
-      margin-bottom: 32px;
-    }
-
-    .content-title {
-      font-size: 26px;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-
-    .content-subtitle {
-      color: var(--text-muted);
-      font-size: 14px;
-    }
-
-    .grid-layout {
-      display: grid;
-      gap: 24px;
-      max-width: 900px;
-    }
-
-    .dash-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.3);
-    }
-
-    .card-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 20px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      padding-bottom: 12px;
-    }
-
-    .stats-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-
-    .stat-card {
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      padding: 16px;
-      border-radius: 12px;
-      text-align: center;
-    }
-
-    .stat-num {
-      font-size: 20px;
-      font-weight: 700;
-      color: #38bdf8;
-      margin-top: 4px;
-    }
-
-    .sub-section {
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      padding: 18px;
-    }
-
-    .divider-text {
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 12px;
-      margin: 16px 0;
-      position: relative;
-    }
-
-    .divider-text::before, .divider-text::after {
-      content: "";
-      position: absolute;
-      top: 50%;
-      width: 40%;
-      height: 1px;
-      background: var(--border);
-    }
-    .divider-text::before { left: 0; }
-    .divider-text::after { right: 0; }
-
-    .result-box {
-      background: #090d16;
-      border: 1px solid var(--accent);
-      border-radius: 12px;
-      padding: 20px;
-      margin-top: 20px;
-      display: none;
-    }
-
-    .advice-text {
-      white-space: pre-wrap;
-      font-size: 14px;
-      line-height: 1.7;
-      color: #e2e8f0;
-    }
+    .result-box { background: #090d16; border: 1px solid var(--accent); border-radius: 12px; padding: 20px; margin-top: 20px; display: none; }
+    .advice-text { white-space: pre-wrap; font-size: 14px; line-height: 1.7; color: #e2e8f0; }
   </style>
 </head>
 <body>
 
-  <!-- 🔒 1. メールOTP（二段階コード）認証画面 -->
+  <!-- 🔒 1. 認証画面 -->
   <div id="authSection" class="auth-wrapper">
     <div class="auth-box">
       <div class="auth-logo">
         <div class="auth-logo-badge">⚡</div>
         <div class="auth-title">SNS Analytics AI</div>
-        <div class="auth-subtitle">メール認証コードでログイン / 会員登録</div>
+        <div class="auth-subtitle">6桁の認証コードでログイン / 会員登録</div>
       </div>
 
-      <!-- ステップ1: メール入力 -->
+      <!-- ステップ1: メール送信 -->
       <div id="stepSendOtp">
         <div class="form-group">
           <label>メールアドレス</label>
@@ -325,11 +128,11 @@
         <button class="btn btn-primary" onclick="handleSendOtp()">認証コードを送信する</button>
       </div>
 
-      <!-- ステップ2: 6桁コード入力（初期状態は非表示） -->
+      <!-- ステップ2: 6桁コード入力 -->
       <div id="stepVerifyOtp" style="display: none;">
         <div class="form-group">
           <label>メールに届いた6桁の認証コード</label>
-          <input type="text" id="authOtpCode" class="form-input" placeholder="123456" maxlength="6" style="text-align:center; font-size:18px; letter-spacing:4px;">
+          <input type="text" id="authOtpCode" class="form-input" placeholder="123456" maxlength="6" style="text-align:center; font-size:20px; letter-spacing:6px; font-weight:bold;">
         </div>
         <button class="btn btn-primary" onclick="handleVerifyOtp()">認証してログイン</button>
         <button class="btn btn-secondary" style="margin-top:8px; font-size:12px;" onclick="resetAuthStep()">メールアドレスを入力し直す</button>
@@ -339,9 +142,8 @@
     </div>
   </div>
 
-  <!-- 🚀 2. プロ仕様メインダッシュボード -->
+  <!-- 🚀 2. メインダッシュボード -->
   <div id="appSection" class="app-layout" style="display: none;">
-
     <div class="sidebar">
       <div>
         <div class="sidebar-brand">
@@ -372,7 +174,6 @@
       </div>
 
       <div class="grid-layout">
-
         <!-- 0. TikTokアカウント情報 -->
         <div class="dash-card">
           <div class="card-header">
@@ -414,9 +215,7 @@
 
         <!-- 1. 参考動画ナレッジ蓄積 -->
         <div class="dash-card">
-          <div class="card-header">
-            <span>📥</span> 1. バズ動画ナレッジ蓄積
-          </div>
+          <div class="card-header"><span>📥</span> 1. バズ動画ナレッジ蓄積</div>
 
           <div class="form-group">
             <label>🎥 参考動画ファイル (.mp4) をAI解析</label>
@@ -437,9 +236,7 @@
 
         <!-- 2. 自分の動画診断 -->
         <div class="dash-card">
-          <div class="card-header">
-            <span>🎥</span> 2. 自社動画のAI改善診断
-          </div>
+          <div class="card-header"><span>🎥</span> 2. 自社動画のAI改善診断</div>
 
           <div class="form-group">
             <label>診断用動画を選択</label>
@@ -453,10 +250,8 @@
             <div id="adviceText" class="advice-text">分析中...</div>
           </div>
         </div>
-
       </div>
     </div>
-
   </div>
 
 <script>
@@ -509,7 +304,7 @@
     document.getElementById('authStatus').innerText = '';
   }
 
-  // 📧 1. 認証コード（OTP）を送信
+  // 📧 6桁コード（OTP）送信処理
   async function handleSendOtp() {
     const email = document.getElementById('authEmail').value;
     const status = document.getElementById('authStatus');
@@ -517,9 +312,15 @@
     if (!email) return alert('メールアドレスを入力してください');
 
     status.style.color = '#38bdf8';
-    status.innerText = '⏳ 認証コードをメール送信中...';
+    status.innerText = '⏳ 認証コードを送信中...';
 
-    const { error } = await supabaseClient.auth.signInWithOtp({ email });
+    // shouldCreateUser: true を指定して確実にコード生成させる
+    const { error } = await supabaseClient.auth.signInWithOtp({
+      email: email,
+      options: {
+        shouldCreateUser: true
+      }
+    });
 
     if (error) {
       status.style.color = '#f87171';
@@ -532,7 +333,7 @@
     }
   }
 
-  // 🔑 2. 認証コード（OTP）を検証してログイン
+  // 🔑 6桁コード検証処理
   async function handleVerifyOtp() {
     const email = document.getElementById('authEmail').value;
     const token = document.getElementById('authOtpCode').value;
@@ -544,8 +345,8 @@
     status.innerText = '⏳ コードを検証中...';
 
     const { data, error } = await supabaseClient.auth.verifyOtp({
-      email,
-      token,
+      email: email,
+      token: token,
       type: 'email'
     });
 
