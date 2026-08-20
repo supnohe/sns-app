@@ -299,7 +299,9 @@
 <script>
   const SUPABASE_URL = "https://kbklsruhvltokvtizzcl.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtia2xzcnVodmx0b2t2dGl6emNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwOTUyNDIsImV4cCI6MjEwMjY3MTI0Mn0.Q4HRm9pVF0XyAGHgv-7UQEjenSIr1gofWuTLAUY2bEI";
-  const GEMINI_API_KEY = "AQ.Ab8RN6JxcEckLGVY0XYscek7ms4DVnZMBlM3g01Cs28yVzZhSw";
+  
+  // 🔑 ご提示いただいたAPIキーを適用済みです
+  const GEMINI_API_KEY = "AQ.Ab8RN6L6suqxHPMu3saflQrSXHP0-T2pdVKI6nZCQPQiJfmzkw";
 
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null;
@@ -541,33 +543,21 @@
     });
   }
 
-  // 🛡️ 混雑エラー（503）発生時にモデルを自動フォールバックする万能リクエスト関数
-  async function fetchGeminiWithFallback(promptText, inlineData = null) {
-    const models = ["gemini-1.5-flash", "gemini-2.5-flash"];
-    let lastError = null;
+  async function callGemini(promptText, inlineData = null) {
+    const parts = [{ text: promptText }];
+    if (inlineData) parts.push({ inline_data: inlineData });
 
-    for (const model of models) {
-      try {
-        const parts = [{ text: promptText }];
-        if (inlineData) parts.push({ inline_data: inlineData });
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts }] })
+    });
 
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts }] })
-        });
-
-        const data = await res.json();
-        if (res.ok && data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-          return data.candidates[0].content.parts[0].text;
-        } else {
-          lastError = new Error(data.error?.message || `Model ${model} Error (${res.status})`);
-        }
-      } catch (err) {
-        lastError = err;
-      }
+    const data = await res.json();
+    if (!res.ok || !data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+      throw new Error(data.error?.message || `AI通信エラー (Status ${res.status})`);
     }
-    throw lastError || new Error("全AIモデルが混雑中です。時間を置いてお試しください。");
+    return data.candidates[0].content.parts[0].text;
   }
 
   async function addVideoFileKnowledge() {
@@ -598,7 +588,7 @@
 ・視聴者を惹きつける工夫やダンス・アクションの特徴
 `;
 
-      const aiText = await fetchGeminiWithFallback(promptText, { mime_type: file.type || "video/mp4", data: base64Data });
+      const aiText = await callGemini(promptText, { mime_type: file.type || "video/mp4", data: base64Data });
 
       const titleMatch = aiText.split('\n')[0].replace('動画タイトル:', '').replace('タイトル:', '').trim();
       const autoTitle = titleMatch || `動画解析: ${file.name}`;
@@ -632,7 +622,7 @@
 URL: ${rawUrl}
 `;
 
-      const features = await fetchGeminiWithFallback(promptText);
+      const features = await callGemini(promptText);
 
       const { error: dbError } = await supabaseClient
         .from('reference_videos')
@@ -716,7 +706,7 @@ ${knowledgeText}
 ・[まとめ5]
 `;
 
-      const rawAdvice = await fetchGeminiWithFallback(promptText, { mime_type: myFile.type || "video/mp4", data: myBase64 });
+      const rawAdvice = await callGemini(promptText, { mime_type: myFile.type || "video/mp4", data: myBase64 });
 
       adviceText.innerText = rawAdvice;
 
