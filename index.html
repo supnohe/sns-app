@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SNSマーケ AI動画分析ナレッジツール</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -255,12 +256,19 @@
           </div>
         </div>
 
-        <!-- 📈 アカウント過去〜現在の傾向AI分析 -->
+        <!-- 📈 📂 Excelデータ格納＆アカウント傾向AI分析 -->
         <div class="dash-card">
           <div class="card-header"><span>📊</span> 過去〜現在の伸び・バズ傾向AI診断</div>
-          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">過去1年間のデータ（閲覧数、伸び率、ファン属性など）を基にしたアカウント分析レポート</p>
+          
+          <div class="sub-section" style="margin-bottom: 16px;">
+            <div class="form-group" style="margin-bottom: 8px;">
+              <label>📁 分析用Excelデータ (.xlsx) を取り込む（複数ファイル可能）</label>
+              <input type="file" id="excelFilesInput" class="form-input" accept=".xlsx, .xls, .csv" multiple onchange="handleExcelUpload(event)">
+            </div>
+            <p id="excelStatus" style="font-size: 12px; color: #38bdf8;">※先ほどいただいたデータを標準読み込み済みです。最新データを上書きしたい場合はファイルを選択してください。</p>
+          </div>
 
-          <button class="btn btn-primary" onclick="analyzeAccountTrends()">最新のアカウント傾向をAI分析する</button>
+          <button class="btn btn-primary" onclick="analyzeAccountTrends()">Excelデータを基に現在の傾向をAI分析する</button>
 
           <div id="trendResultBox" class="result-box">
             <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">📊 アカウント全体傾向・戦略レポート</div>
@@ -316,6 +324,21 @@
 
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null;
+
+  // 📁 アップロードされたExcelデータを動的に格納するグローバル変数
+  let uploadedExcelDataText = `
+【取り込み済みアカウント統計データ（@supnohe）】
+- 概要 (Overview): 年間平均再生 16,411回、最大再生 382,152回。いいね平均 1,022件。
+- フォロワー推移 (FollowerHistory): 5,575人から現在19,115人へ急速拡大（直近も1日20〜40人規模で増加中）。
+- フォロワー性別 (FollowerGender): 女性 53%, 男性 44%, その他 3%
+- 主要地域 (FollowerTopTerritories): 日本 29.8%, フィリピン 4.5%, ブラジル 3.2%
+- 主なバズコンテンツ (Content):
+  1. BTSジョングクフォロー関連: 2,229,852回再生 / 101,723いいね / 302シェア
+  2. SOTA (BE:FIRST) 関連ダンス: 841,635回再生 / 57,701いいね / 543シェア
+  3. 柔軟・音ハメダンス: 758,549回再生 / 91,106いいね / 2,953シェア
+  4. edhiii boi チャレンジ: 389,087回再生 / 25,311いいね / 514シェア
+  5. Lockダンス動画: 226,025回再生 / 10,868いいね / 790シェア
+`;
 
   window.onload = async function() {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -554,6 +577,38 @@
     });
   }
 
+  // 📂 Excelファイルのリアルタイムパース（読み込み）関数
+  async function handleExcelUpload(event) {
+    const files = event.target.files;
+    const status = document.getElementById('excelStatus');
+    if (!files || files.length === 0) return;
+
+    status.innerText = "⏳ Excelファイルを読み込み中...";
+    let combinedText = "\n【ユーザーが手動追加した最新Excelデータ】\n";
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        combinedText += `\n--- ファイル名: ${file.name} ---\n`;
+        workbook.SheetNames.forEach(sheetName => {
+          const worksheet = workbook.Sheets[sheetName];
+          const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          combinedText += `[シート: ${sheetName}]\n` + JSON.stringify(json.slice(0, 15)) + "\n";
+        });
+      }
+
+      uploadedExcelDataText = combinedText;
+      status.innerText = `✅ ${files.length} 個のExcelファイルの読み込みとデータ更新が完了しました！`;
+
+    } catch (err) {
+      console.error(err);
+      status.innerText = "❌ Excel読み込みエラー: " + err.message;
+    }
+  }
+
   async function callGemini(promptText, inlineData = null) {
     const parts = [{ text: promptText }];
     if (inlineData) parts.push({ inline_data: inlineData });
@@ -571,37 +626,21 @@
     return data.candidates[0].content.parts[0].text;
   }
 
-  // 📊 ② アカウント過去〜現在の伸び・バズ傾向AI分析機能
+  // 📊 格納されたExcelデータを基にアカウント傾向をAI分析
   async function analyzeAccountTrends() {
     const resultBox = document.getElementById('trendResultBox');
     const adviceText = document.getElementById('trendAdviceText');
 
     resultBox.style.display = "block";
-    adviceText.innerText = "⏳ 過去データ（閲覧数・投稿ヒット率・ファン属性）を総合分析中...";
+    adviceText.innerText = "⏳ 格納されたExcelデータ（閲覧数・投稿ヒット率・ファン属性）を総合分析中...";
 
     try {
-      const accountDataSummary = `
-【アカウント統計データ（@supnohe）】
-- フォロワー数: 約1.91万人（1年間で5,500人規模から急速成長）
-- フォロワー属性: 女性 53%, 男性 44%, その他 3%
-- フォロワー主要地域: 日本 29.8%, フィリピン 4.5%, ブラジル 3.2%
-- 平均再生数: 16,400回 / 最大再生数: 38.2万回
-- 平均いいね数: 1,022件 / 最大いいね数: 14,912件
-
-【過去のトップヒット動画傾向】
-1. ジョングク（BTS）フォロー関連動画: 2,229,852回再生 / 101,723いいね / 302シェア
-2. BE:FIRST SOTA関連のダンス動画: 841,635回再生 / 57,701いいね / 543シェア
-3. 柔軟性・音ハメダンス動画: 758,549回再生 / 91,106いいね / 2,953シェア
-4. edhiii boi トラックダンス動画: 389,087回再生 / 25,311いいね / 514シェア
-5. ロックダンス（Locking）動画: 226,025回再生 / 10,868いいね / 790シェア
-`;
-
       const promptText = `
 あなたはプロのSNS動画マーケター・アナリストです。
-以下に記載されたTikTokアカウント（@supnohe）の【実績データ】を分析し、アカウントの「過去から最近の傾向」「今のポジショニング・強み」「今後さらに伸びるための具体的施策」をレポートしてください。
+以下に格納されているTikTokアカウント（@supnohe）の【データ】を分析し、「過去から最近の傾向」「今のポジショニング・強み」「今後さらに伸びるための具体的施策」をわかりやすくレポートしてください。
 
-【実績データ】
-${accountDataSummary}
+【取り込みデータ】
+${uploadedExcelDataText}
 
 出力フォーマット（見出し・記号は変えずこのまま出力してください）：
 
@@ -708,7 +747,6 @@ URL: ${rawUrl}
     }
   }
 
-  // ① 投稿文＆ハッシュタグ提案を組み込んだ動画診断機能
   async function analyzeMyVideo() {
     const myFile = document.getElementById('myVideo').files[0];
     const resultBox = document.getElementById('resultBox');
