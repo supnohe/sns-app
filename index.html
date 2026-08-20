@@ -256,22 +256,22 @@
           </div>
         </div>
 
-        <!-- 📈 📂 Excelデータ格納＆アカウント傾向AI分析 -->
+        <!-- 📈 📂 Excelデータ格納＆アカウント傾向AI分析（要約版） -->
         <div class="dash-card">
-          <div class="card-header"><span>📊</span> 過去〜現在の伸び・バズ傾向AI診断</div>
+          <div class="card-header"><span>📊</span> 過去〜現在の伸び・バズ傾向要約サマリー</div>
           
           <div class="sub-section" style="margin-bottom: 16px;">
             <div class="form-group" style="margin-bottom: 8px;">
-              <label>📁 分析用Excelデータ (.xlsx) を取り込む（複数ファイル可能）</label>
+              <label>📁 分析用Excelデータ (.xlsx) の上書き追加（任意）</label>
               <input type="file" id="excelFilesInput" class="form-input" accept=".xlsx, .xls, .csv" multiple onchange="handleExcelUpload(event)">
             </div>
-            <p id="excelStatus" style="font-size: 12px; color: #38bdf8;">※先ほどいただいたデータを標準読み込み済みです。最新データを上書きしたい場合はファイルを選択してください。</p>
+            <p id="excelStatus" style="font-size: 12px; color: #38bdf8;">※標準データを適用済みです。</p>
           </div>
 
-          <button class="btn btn-primary" onclick="analyzeAccountTrends()">Excelデータを基に現在の傾向をAI分析する</button>
+          <button class="btn btn-primary" onclick="analyzeAccountTrends()">要約傾向分析レポートを生成</button>
 
           <div id="trendResultBox" class="result-box">
-            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">📊 アカウント全体傾向・戦略レポート</div>
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">📊 アカウント全体サマリー</div>
             <div id="trendAdviceText" class="advice-text">分析中...</div>
           </div>
         </div>
@@ -325,19 +325,11 @@
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null;
 
-  // 📁 アップロードされたExcelデータを動的に格納するグローバル変数
   let uploadedExcelDataText = `
 【取り込み済みアカウント統計データ（@supnohe）】
-- 概要 (Overview): 年間平均再生 16,411回、最大再生 382,152回。いいね平均 1,022件。
-- フォロワー推移 (FollowerHistory): 5,575人から現在19,115人へ急速拡大（直近も1日20〜40人規模で増加中）。
-- フォロワー性別 (FollowerGender): 女性 53%, 男性 44%, その他 3%
-- 主要地域 (FollowerTopTerritories): 日本 29.8%, フィリピン 4.5%, ブラジル 3.2%
-- 主なバズコンテンツ (Content):
-  1. BTSジョングクフォロー関連: 2,229,852回再生 / 101,723いいね / 302シェア
-  2. SOTA (BE:FIRST) 関連ダンス: 841,635回再生 / 57,701いいね / 543シェア
-  3. 柔軟・音ハメダンス: 758,549回再生 / 91,106いいね / 2,953シェア
-  4. edhiii boi チャレンジ: 389,087回再生 / 25,311いいね / 514シェア
-  5. Lockダンス動画: 226,025回再生 / 10,868いいね / 790シェア
+- 概要: フォロワー1.9万人（年間で5.5千人から急速拡大）。平均再生1.6万、最高38.2万。
+- 性別・地域: 女性53%・男性44%。日本30%、フィリピン4.5%、ブラジル3.2%。
+- バズ傾向: BTSジョングク（222万再生）、BE:FIRST SOTA（84万再生）、柔軟・音ハメ（75万再生）、edhiii boi（38万再生）。
 `;
 
   window.onload = async function() {
@@ -577,14 +569,13 @@
     });
   }
 
-  // 📂 Excelファイルのリアルタイムパース（読み込み）関数
   async function handleExcelUpload(event) {
     const files = event.target.files;
     const status = document.getElementById('excelStatus');
     if (!files || files.length === 0) return;
 
     status.innerText = "⏳ Excelファイルを読み込み中...";
-    let combinedText = "\n【ユーザーが手動追加した最新Excelデータ】\n";
+    let combinedText = "\n【追加Excelデータ】\n";
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -592,16 +583,16 @@
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data, { type: 'array' });
         
-        combinedText += `\n--- ファイル名: ${file.name} ---\n`;
+        combinedText += `\n--- ${file.name} ---\n`;
         workbook.SheetNames.forEach(sheetName => {
           const worksheet = workbook.Sheets[sheetName];
           const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          combinedText += `[シート: ${sheetName}]\n` + JSON.stringify(json.slice(0, 15)) + "\n";
+          combinedText += `[シート: ${sheetName}]\n` + JSON.stringify(json.slice(0, 10)) + "\n";
         });
       }
 
       uploadedExcelDataText = combinedText;
-      status.innerText = `✅ ${files.length} 個のExcelファイルの読み込みとデータ更新が完了しました！`;
+      status.innerText = `✅ 追加Excelデータの読み込みが完了しました！`;
 
     } catch (err) {
       console.error(err);
@@ -626,37 +617,32 @@
     return data.candidates[0].content.parts[0].text;
   }
 
-  // 📊 格納されたExcelデータを基にアカウント傾向をAI分析
+  // 📊 ① アカウント傾向を簡潔に要約して分析出力
   async function analyzeAccountTrends() {
     const resultBox = document.getElementById('trendResultBox');
     const adviceText = document.getElementById('trendAdviceText');
 
     resultBox.style.display = "block";
-    adviceText.innerText = "⏳ 格納されたExcelデータ（閲覧数・投稿ヒット率・ファン属性）を総合分析中...";
+    adviceText.innerText = "⏳ アカウント傾向を要約分析中...";
 
     try {
       const promptText = `
-あなたはプロのSNS動画マーケター・アナリストです。
-以下に格納されているTikTokアカウント（@supnohe）の【データ】を分析し、「過去から最近の傾向」「今のポジショニング・強み」「今後さらに伸びるための具体的施策」をわかりやすくレポートしてください。
+あなたはプロのSNSマーケターです。
+以下のアカウントデータ（@supnohe）を基に、要点を絞って**全体で250文字程度の簡潔な要約サマリー**を作成してください。冗長な前置きや長文説明は避け、要点だけを箇条書きで短くまとめてください。
 
-【取り込みデータ】
+【データ】
 ${uploadedExcelDataText}
 
-出力フォーマット（見出し・記号は変えずこのまま出力してください）：
+出力形式：
 
-1．過去〜現在の伸びと傾向分析
-・[過去から現在にかけてどのように伸びているか]
-・[どんな動画が圧倒的にバズっているか（有名アーティスト・ダンスジャンルなど）]
-・[フォロワー層（性別・地域）の特徴]
+【現状・伸びの傾向】
+・[1〜2行で要約]
 
-2．今のアカウントの強みと課題
-・[強み（ダンス技術、音楽選曲、バイラル力）]
-・[課題（投稿頻度のムラやエンゲージメント率の維持など）]
+【バズコンテンツの特徴】
+・[1〜2行で要約]
 
-3．今後さらにバズらせるための具体的アクション案
-・[次回狙うべきアーティスト・楽曲ジャンル]
-・[海外視聴者・女性層を意識した演出アイデア]
-・[保存・シェア数を最大化するための工夫]
+【今後試すべき具体的施策】
+・[1〜2行で要約]
 `;
 
       const rawAdvice = await callGemini(promptText);
