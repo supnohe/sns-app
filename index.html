@@ -53,7 +53,7 @@
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
 
-    .auth-logo { text-align: center; margin-bottom: 30px; }
+    .auth-logo { text-align: center; margin-bottom: 20px; }
     .auth-logo-badge {
       display: inline-flex; align-items: center; justify-content: center;
       width: 48px; height: 48px;
@@ -64,6 +64,32 @@
 
     .auth-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
     .auth-subtitle { font-size: 14px; color: var(--text-muted); }
+
+    /* タブ切り替え */
+    .auth-tabs {
+      display: flex;
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+    }
+    .auth-tab {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .auth-tab.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
     .form-group { margin-bottom: 18px; text-align: left; }
     .form-group label { display: block; font-size: 13px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; }
     .form-input {
@@ -116,26 +142,55 @@
       <div class="auth-logo">
         <div class="auth-logo-badge">⚡</div>
         <div class="auth-title">SNS Analytics AI</div>
-        <div class="auth-subtitle">6桁の認証コードでログイン / 会員登録</div>
       </div>
 
-      <!-- ステップ1: メール送信 -->
-      <div id="stepSendOtp">
+      <!-- タブ切り替えボタン -->
+      <div class="auth-tabs" id="tabContainer">
+        <div class="auth-tab active" onclick="switchAuthTab('signup')">新規会員登録</div>
+        <div class="auth-tab" onclick="switchAuthTab('login')">ログイン</div>
+      </div>
+
+      <!-- ---------------- 新規登録フロー ---------------- -->
+      <!-- ステップ1: メール入力（6桁コード送信） -->
+      <div id="signupStep1">
         <div class="form-group">
           <label>メールアドレス</label>
-          <input type="email" id="authEmail" class="form-input" placeholder="name@company.com">
+          <input type="email" id="signupEmail" class="form-input" placeholder="name@company.com">
         </div>
-        <button class="btn btn-primary" onclick="handleSendOtp()">認証コードを送信する</button>
+        <button class="btn btn-primary" onclick="handleSendSignupCode()">認証コードを送信する</button>
       </div>
 
-      <!-- ステップ2: 6桁コード入力 -->
-      <div id="stepVerifyOtp" style="display: none;">
+      <!-- ステップ2: 6桁コード検証 -->
+      <div id="signupStep2" style="display: none;">
         <div class="form-group">
           <label>メールに届いた6桁の認証コード</label>
-          <input type="text" id="authOtpCode" class="form-input" placeholder="123456" maxlength="6" style="text-align:center; font-size:20px; letter-spacing:6px; font-weight:bold;">
+          <input type="text" id="signupCode" class="form-input" placeholder="123456" maxlength="6" style="text-align:center; font-size:20px; letter-spacing:6px; font-weight:bold;">
         </div>
-        <button class="btn btn-primary" onclick="handleVerifyOtp()">認証してログイン</button>
-        <button class="btn btn-secondary" style="margin-top:8px; font-size:12px;" onclick="resetAuthStep()">メールアドレスを入力し直す</button>
+        <button class="btn btn-primary" onclick="handleVerifySignupCode()">コードを認証する</button>
+        <button class="btn btn-secondary" style="margin-top:8px; font-size:12px;" onclick="resetSignupStep()">入力し直す</button>
+      </div>
+
+      <!-- ステップ3: パスワード設定（初回のみ） -->
+      <div id="signupStep3" style="display: none;">
+        <div style="font-size: 13px; color: #38bdf8; margin-bottom: 12px; text-align: center;">✅ メール認証成功！ログイン用パスワードを設定してください</div>
+        <div class="form-group">
+          <label>パスワード（6文字以上）</label>
+          <input type="password" id="signupPassword" class="form-input" placeholder="••••••••">
+        </div>
+        <button class="btn btn-primary" onclick="handleSetPasswordAndFinish()">パスワードを保存して開始</button>
+      </div>
+
+      <!-- ---------------- ログインフロー（パスワード認証） ---------------- -->
+      <div id="loginForm" style="display: none;">
+        <div class="form-group">
+          <label>メールアドレス</label>
+          <input type="email" id="loginEmail" class="form-input" placeholder="name@company.com">
+        </div>
+        <div class="form-group">
+          <label>パスワード</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="••••••••">
+        </div>
+        <button class="btn btn-primary" onclick="handlePasswordLogin()">ログイン</button>
       </div>
 
       <p id="authStatus" style="font-size: 12px; margin-top: 16px; text-align: center;"></p>
@@ -262,6 +317,7 @@
 
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null;
+  let currentTab = 'signup';
 
   window.onload = async function() {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -276,7 +332,7 @@
   function showAuthScreen() {
     document.getElementById('authSection').style.display = 'flex';
     document.getElementById('appSection').style.display = 'none';
-    resetAuthStep();
+    switchAuthTab('signup');
   }
 
   function showAppScreen() {
@@ -298,15 +354,35 @@
     }
   }
 
-  function resetAuthStep() {
-    document.getElementById('stepSendOtp').style.display = 'block';
-    document.getElementById('stepVerifyOtp').style.display = 'none';
+  // タブ切り替え処理
+  function switchAuthTab(tab) {
+    currentTab = tab;
+    document.getElementById('authStatus').innerText = '';
+    const tabs = document.querySelectorAll('.auth-tab');
+    tabs[0].classList.toggle('active', tab === 'signup');
+    tabs[1].classList.toggle('active', tab === 'login');
+
+    if (tab === 'signup') {
+      resetSignupStep();
+      document.getElementById('loginForm').style.display = 'none';
+    } else {
+      document.getElementById('signupStep1').style.display = 'none';
+      document.getElementById('signupStep2').style.display = 'none';
+      document.getElementById('signupStep3').style.display = 'none';
+      document.getElementById('loginForm').style.display = 'block';
+    }
+  }
+
+  function resetSignupStep() {
+    document.getElementById('signupStep1').style.display = 'block';
+    document.getElementById('signupStep2').style.display = 'none';
+    document.getElementById('signupStep3').style.display = 'none';
     document.getElementById('authStatus').innerText = '';
   }
 
-  // 📧 6桁コード（OTP）送信処理
-  async function handleSendOtp() {
-    const email = document.getElementById('authEmail').value;
+  // 1. 新規登録：6桁コード送信
+  async function handleSendSignupCode() {
+    const email = document.getElementById('signupEmail').value;
     const status = document.getElementById('authStatus');
 
     if (!email) return alert('メールアドレスを入力してください');
@@ -314,12 +390,9 @@
     status.style.color = '#38bdf8';
     status.innerText = '⏳ 認証コードを送信中...';
 
-    // shouldCreateUser: true を指定して確実にコード生成させる
     const { error } = await supabaseClient.auth.signInWithOtp({
       email: email,
-      options: {
-        shouldCreateUser: true
-      }
+      options: { shouldCreateUser: true }
     });
 
     if (error) {
@@ -327,16 +400,16 @@
       status.innerText = '❌ エラー: ' + error.message;
     } else {
       status.style.color = '#4ade80';
-      status.innerText = '✅ メールに6桁の認証コードを送信しました！';
-      document.getElementById('stepSendOtp').style.display = 'none';
-      document.getElementById('stepVerifyOtp').style.display = 'block';
+      status.innerText = '✅ 認証コードを送信しました！';
+      document.getElementById('signupStep1').style.display = 'none';
+      document.getElementById('signupStep2').style.display = 'block';
     }
   }
 
-  // 🔑 6桁コード検証処理
-  async function handleVerifyOtp() {
-    const email = document.getElementById('authEmail').value;
-    const token = document.getElementById('authOtpCode').value;
+  // 2. 新規登録：6桁コード検証
+  async function handleVerifySignupCode() {
+    const email = document.getElementById('signupEmail').value;
+    const token = document.getElementById('signupCode').value;
     const status = document.getElementById('authStatus');
 
     if (!token) return alert('6桁の認証コードを入力してください');
@@ -352,7 +425,55 @@
 
     if (error) {
       status.style.color = '#f87171';
-      status.innerText = '❌ 認証失敗: コードが間違っているか期限切れです';
+      status.innerText = '❌ 認証失敗: コードが違います';
+    } else {
+      currentUser = data.user;
+      status.innerText = '';
+      document.getElementById('signupStep2').style.display = 'none';
+      document.getElementById('signupStep3').style.display = 'block';
+    }
+  }
+
+  // 3. 新規登録：パスワードを設定して完了
+  async function handleSetPasswordAndFinish() {
+    const password = document.getElementById('signupPassword').value;
+    const status = document.getElementById('authStatus');
+
+    if (!password || password.length < 6) return alert('パスワードは6文字以上で入力してください');
+
+    status.style.color = '#38bdf8';
+    status.innerText = '⏳ パスワードを設定中...';
+
+    const { error } = await supabaseClient.auth.updateUser({ password: password });
+
+    if (error) {
+      status.style.color = '#f87171';
+      status.innerText = '❌ パスワード設定失敗: ' + error.message;
+    } else {
+      alert('会員登録が完了しました！');
+      showAppScreen();
+    }
+  }
+
+  // 🔑 ログイン処理（メール＋パスワード）
+  async function handlePasswordLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const status = document.getElementById('authStatus');
+
+    if (!email || !password) return alert('メールアドレスとパスワードを入力してください');
+
+    status.style.color = '#38bdf8';
+    status.innerText = '⏳ ログイン中...';
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+    if (error) {
+      status.style.color = '#f87171';
+      status.innerText = '❌ ログイン失敗: メールアドレスまたはパスワードが違います';
     } else {
       currentUser = data.user;
       showAppScreen();
