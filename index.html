@@ -475,7 +475,7 @@
     }
   }
 
-  // 🚀 TikTok公開Webページからプロファイル情報を直接解析（HTMLスクレイピング）
+  // ⚡ TikTokリアルタイム統計API（Countik）からデータを取得
   async function autoFetchTikTokAccount(rawUrl, isManualClick = true) {
     const status = document.getElementById('accStatus');
     if (isManualClick) status.innerText = "⏳ TikTokから最新アカウントデータを取得中...";
@@ -485,62 +485,30 @@
     if (match) uniqueId = match[1];
 
     try {
-      // CORS回避用プロキシを経由してプロファイルHTMLを取得
-      const targetUrl = `https://www.tiktok.com/@${uniqueId}`;
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-      
-      const response = await fetch(proxyUrl);
+      const response = await fetch(`https://countik.com/api/user/exist/${encodeURIComponent(uniqueId)}`);
       const resData = await response.json();
-      const htmlText = resData.contents || "";
 
-      let followers = 0;
-      let likes = 0;
-      let videos = 0;
+      if (resData && resData.status === "success") {
+        const followers = resData.follower_count || 0;
+        const likes = resData.heart_count || 0;
+        const videos = resData.video_count || 0;
 
-      // TikTokページのJSONオブジェクト（SIGI_STATE / __UNIVERSAL_DATA_FOR_REHYDRATION__）から数字を自動抽出
-      const jsonMatch = htmlText.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application\/json">(.*?)<\/script>/s) 
-                     || htmlText.match(/<script id="SIGI_STATE" type="application\/json">(.*?)<\/script>/s);
+        document.getElementById('accUsername').innerText = `@${uniqueId}`;
+        document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
+        document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
+        document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
 
-      if (jsonMatch && jsonMatch[1]) {
-        const jsonData = JSON.parse(jsonMatch[1]);
-        const userModule = jsonData.__DEFAULT_SCOPE__?.['webapp.user-detail']?.userInfo 
-                        || jsonData.UserModule?.users?.[uniqueId] 
-                        || {};
-        const stats = userModule.stats || jsonData.__DEFAULT_SCOPE__?.['webapp.user-detail']?.userInfo?.stats || {};
+        const accData = { url: rawUrl, username: `@${uniqueId}`, followers, likes, videos };
+        localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
-        followers = stats.followerCount || 0;
-        likes = stats.heartCount || stats.heart || 0;
-        videos = stats.videoCount || 0;
+        if (isManualClick) status.innerText = `✅ @${uniqueId} のリアルタイム最新データを自動同期しました！`;
+      } else {
+        throw new Error("アカウントの取得に失敗しました");
       }
-
-      // 代替抽出（メタタグからの数字読み込み）
-      if (followers === 0) {
-        const metaMatch = htmlText.match(/"followerCount":(\d+)/);
-        if (metaMatch) followers = parseInt(metaMatch[1]);
-      }
-      if (likes === 0) {
-        const metaMatch = htmlText.match(/"heartCount":(\d+)/);
-        if (metaMatch) likes = parseInt(metaMatch[1]);
-      }
-      if (videos === 0) {
-        const metaMatch = htmlText.match(/"videoCount":(\d+)/);
-        if (metaMatch) videos = parseInt(metaMatch[1]);
-      }
-
-      // 画面反映
-      document.getElementById('accUsername').innerText = `@${uniqueId}`;
-      document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
-      document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
-      document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
-
-      const accData = { url: rawUrl, username: `@${uniqueId}`, followers, likes, videos };
-      localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
-
-      if (isManualClick) status.innerText = `✅ @${uniqueId} の最新データを自動同期しました！`;
 
     } catch (err) {
       console.error(err);
-      if (isManualClick) status.innerText = "⚠️ データの自動取得に失敗しました。URLを確認してください。";
+      if (isManualClick) status.innerText = "⚠️ データの取得に失敗しました。ユーザー名(@supnohe)を確認してください。";
     }
   }
 
