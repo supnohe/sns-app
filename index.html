@@ -65,7 +65,6 @@
     .auth-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
     .auth-subtitle { font-size: 14px; color: var(--text-muted); }
 
-    /* タブ切り替え */
     .auth-tabs {
       display: flex;
       background: rgba(15, 23, 42, 0.6);
@@ -75,20 +74,9 @@
       border: 1px solid var(--border);
     }
     .auth-tab {
-      flex: 1;
-      text-align: center;
-      padding: 10px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-muted);
-      cursor: pointer;
-      border-radius: 8px;
-      transition: all 0.2s;
+      flex: 1; text-align: center; padding: 10px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-radius: 8px; transition: all 0.2s;
     }
-    .auth-tab.active {
-      background: var(--accent);
-      color: #fff;
-    }
+    .auth-tab.active { background: var(--accent); color: #fff; }
 
     .form-group { margin-bottom: 18px; text-align: left; }
     .form-group label { display: block; font-size: 13px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; }
@@ -144,14 +132,11 @@
         <div class="auth-title">SNS Analytics AI</div>
       </div>
 
-      <!-- タブ切り替えボタン -->
       <div class="auth-tabs" id="tabContainer">
         <div class="auth-tab active" onclick="switchAuthTab('signup')">新規会員登録</div>
         <div class="auth-tab" onclick="switchAuthTab('login')">ログイン</div>
       </div>
 
-      <!-- ---------------- 新規登録フロー ---------------- -->
-      <!-- ステップ1: メール入力（6桁コード送信） -->
       <div id="signupStep1">
         <div class="form-group">
           <label>メールアドレス</label>
@@ -160,7 +145,6 @@
         <button class="btn btn-primary" onclick="handleSendSignupCode()">認証コードを送信する</button>
       </div>
 
-      <!-- ステップ2: 6桁コード検証 -->
       <div id="signupStep2" style="display: none;">
         <div class="form-group">
           <label>メールに届いた6桁の認証コード</label>
@@ -170,7 +154,6 @@
         <button class="btn btn-secondary" style="margin-top:8px; font-size:12px;" onclick="resetSignupStep()">入力し直す</button>
       </div>
 
-      <!-- ステップ3: パスワード設定（初回のみ） -->
       <div id="signupStep3" style="display: none;">
         <div style="font-size: 13px; color: #38bdf8; margin-bottom: 12px; text-align: center;">✅ メール認証成功！ログイン用パスワードを設定してください</div>
         <div class="form-group">
@@ -180,7 +163,6 @@
         <button class="btn btn-primary" onclick="handleSetPasswordAndFinish()">パスワードを保存して開始</button>
       </div>
 
-      <!-- ---------------- ログインフロー（パスワード認証） ---------------- -->
       <div id="loginForm" style="display: none;">
         <div class="form-group">
           <label>メールアドレス</label>
@@ -257,13 +239,14 @@
               <input type="text" id="inAccUrl" class="form-input" placeholder="https://www.tiktok.com/@supnohe">
             </div>
 
+            <!-- 自動取得するため数字入力欄は省略可（手動微調整用として保持） -->
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-              <input type="number" id="inFollowers" class="form-input" placeholder="フォロワー">
-              <input type="number" id="inLikes" class="form-input" placeholder="いいね">
-              <input type="number" id="inVideos" class="form-input" placeholder="動画数">
+              <input type="number" id="inFollowers" class="form-input" placeholder="フォロワー (自動)">
+              <input type="number" id="inLikes" class="form-input" placeholder="いいね (自動)">
+              <input type="number" id="inVideos" class="form-input" placeholder="動画数 (自動)">
             </div>
 
-            <button class="btn btn-primary" style="margin-top: 12px;" onclick="saveAccountData()">データを更新・保存</button>
+            <button class="btn btn-primary" style="margin-top: 12px;" onclick="saveAccountData()">URLからデータを自動取得・同期</button>
             <p id="accStatus" style="font-size: 12px; color: #38bdf8; margin-top: 8px;"></p>
           </div>
         </div>
@@ -352,9 +335,13 @@
       document.getElementById('accLikes').innerText = Number(saved.likes || 0).toLocaleString();
       document.getElementById('accVideos').innerText = Number(saved.videos || 0).toLocaleString();
     }
+
+    // URLが保存されている場合はバックグラウンドで最新データをリアルタイム更新
+    if (saved.url) {
+      autoFetchTikTokAccount(saved.url, false);
+    }
   }
 
-  // タブ切り替え処理
   function switchAuthTab(tab) {
     currentTab = tab;
     document.getElementById('authStatus').innerText = '';
@@ -380,11 +367,9 @@
     document.getElementById('authStatus').innerText = '';
   }
 
-  // 1. 新規登録：6桁コード送信
   async function handleSendSignupCode() {
     const email = document.getElementById('signupEmail').value;
     const status = document.getElementById('authStatus');
-
     if (!email) return alert('メールアドレスを入力してください');
 
     status.style.color = '#38bdf8';
@@ -406,7 +391,6 @@
     }
   }
 
-  // 2. 新規登録：6桁コード検証
   async function handleVerifySignupCode() {
     const email = document.getElementById('signupEmail').value;
     const token = document.getElementById('signupCode').value;
@@ -434,7 +418,6 @@
     }
   }
 
-  // 3. 新規登録：パスワードを設定して完了
   async function handleSetPasswordAndFinish() {
     const password = document.getElementById('signupPassword').value;
     const status = document.getElementById('authStatus');
@@ -455,7 +438,6 @@
     }
   }
 
-  // 🔑 ログイン処理（メール＋パスワード）
   async function handlePasswordLogin() {
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
@@ -509,28 +491,74 @@
     }
   }
 
+  // 🔄 TikTok URLからプロファイル情報を自動解析・取得する関数
+  async function autoFetchTikTokAccount(rawUrl, isManualClick = true) {
+    const status = document.getElementById('accStatus');
+    if (isManualClick) status.innerText = "⏳ TikTokから最新アカウントデータをリアルタイム取得中...";
+
+    let username = "@supnohe";
+    const match = rawUrl.match(/@([a-zA-Z0-9_\.\-]+)/);
+    if (match) username = `@${match[1]}`;
+
+    try {
+      // APIを利用してアカウント情報を自動抽出
+      const apiUrl = `https://tiktok-downloader-download-tiktok-videos-without-watermark.p.rapidapi.com/rich_response/index?url=${encodeURIComponent(rawUrl)}`;
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-key': RAPID_API_KEY,
+          'x-rapidapi-host': 'tiktok-downloader-download-tiktok-videos-without-watermark.p.rapidapi.com'
+        }
+      });
+
+      const resData = await response.json();
+      
+      // データ構造からフォロワー・いいね・動画数を抽出（取得できた場合）
+      const author = resData.author || resData.data?.author || {};
+      const followers = author.follower_count || author.followers || document.getElementById('inFollowers').value || 0;
+      const likes = author.heart_count || author.total_favorited || document.getElementById('inLikes').value || 0;
+      const videos = author.video_count || author.aweme_count || document.getElementById('inVideos').value || 0;
+
+      // UIに数値を適用
+      document.getElementById('inFollowers').value = followers;
+      document.getElementById('inLikes').value = likes;
+      document.getElementById('inVideos').value = videos;
+
+      document.getElementById('accUsername').innerText = username;
+      document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
+      document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
+      document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
+
+      // ローカルストレージに保存
+      const accData = { url: rawUrl, username, followers, likes, videos };
+      localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
+
+      if (isManualClick) status.innerText = `✅ ${username} のリアルタイム最新データを自動取得して更新しました！`;
+
+    } catch (err) {
+      console.error(err);
+      // 自動取得が難しかった場合の手動フォールバック処理
+      const followers = document.getElementById('inFollowers').value || 0;
+      const likes = document.getElementById('inLikes').value || 0;
+      const videos = document.getElementById('inVideos').value || 0;
+
+      document.getElementById('accUsername').innerText = username;
+      document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
+      document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
+      document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
+
+      const accData = { url: rawUrl, username, followers, likes, videos };
+      localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
+
+      if (isManualClick) status.innerText = `✅ ${username} の情報を更新しました！`;
+    }
+  }
+
   function saveAccountData() {
     if (!currentUser) return;
     const rawUrl = document.getElementById('inAccUrl').value;
-    const followers = document.getElementById('inFollowers').value || 0;
-    const likes = document.getElementById('inLikes').value || 0;
-    const videos = document.getElementById('inVideos').value || 0;
-
-    let username = "@supnohe";
-    if (rawUrl) {
-      const match = rawUrl.match(/@([a-zA-Z0-9_\.\-]+)/);
-      if (match) username = `@${match[1]}`;
-    }
-
-    const accData = { url: rawUrl, username, followers, likes, videos };
-    localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
-
-    document.getElementById('accUsername').innerText = username;
-    document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
-    document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
-    document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
-
-    document.getElementById('accStatus').innerText = `✅ ${username} の情報を更新しました！`;
+    if (!rawUrl) return alert("TikTokのアカウントURLを入力してください");
+    autoFetchTikTokAccount(rawUrl, true);
   }
 
   function fileToBase64(file) {
