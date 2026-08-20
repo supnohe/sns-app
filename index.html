@@ -63,7 +63,6 @@
     }
 
     .auth-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
-    .auth-subtitle { font-size: 14px; color: var(--text-muted); }
 
     .auth-tabs {
       display: flex;
@@ -239,14 +238,7 @@
               <input type="text" id="inAccUrl" class="form-input" placeholder="https://www.tiktok.com/@supnohe">
             </div>
 
-            <!-- 自動取得するため数字入力欄は省略可（手動微調整用として保持） -->
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-              <input type="number" id="inFollowers" class="form-input" placeholder="フォロワー (自動)">
-              <input type="number" id="inLikes" class="form-input" placeholder="いいね (自動)">
-              <input type="number" id="inVideos" class="form-input" placeholder="動画数 (自動)">
-            </div>
-
-            <button class="btn btn-primary" style="margin-top: 12px;" onclick="saveAccountData()">URLからデータを自動取得・同期</button>
+            <button class="btn btn-primary" style="margin-top: 8px;" onclick="saveAccountData()">URLからデータを自動同期</button>
             <p id="accStatus" style="font-size: 12px; color: #38bdf8; margin-top: 8px;"></p>
           </div>
         </div>
@@ -296,11 +288,9 @@
   const SUPABASE_URL = "https://kbklsruhvltokvtizzcl.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtia2xzcnVodmx0b2t2dGl6emNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwOTUyNDIsImV4cCI6MjEwMjY3MTI0Mn0.Q4HRm9pVF0XyAGHgv-7UQEjenSIr1gofWuTLAUY2bEI";
   const GEMINI_API_KEY = "AQ.Ab8RN6JxcEckLGVY0XYscek7ms4DVnZMBlM3g01Cs28yVzZhSw";
-  const RAPID_API_KEY = "d5d83e4fa6msh08478310af3bfcfp150258jsnf9ffe2098b50";
 
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null;
-  let currentTab = 'signup';
 
   window.onload = async function() {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -325,9 +315,6 @@
 
     const saved = JSON.parse(localStorage.getItem(`my_tiktok_acc_${currentUser.id}`) || '{}');
     if (saved.url) document.getElementById('inAccUrl').value = saved.url;
-    if (saved.followers) document.getElementById('inFollowers').value = saved.followers;
-    if (saved.likes) document.getElementById('inLikes').value = saved.likes;
-    if (saved.videos) document.getElementById('inVideos').value = saved.videos;
 
     if (saved.username) {
       document.getElementById('accUsername').innerText = saved.username;
@@ -336,15 +323,12 @@
       document.getElementById('accVideos').innerText = Number(saved.videos || 0).toLocaleString();
     }
 
-    // URLが保存されている場合はバックグラウンドで最新データをリアルタイム更新
     if (saved.url) {
       autoFetchTikTokAccount(saved.url, false);
     }
   }
 
   function switchAuthTab(tab) {
-    currentTab = tab;
-    document.getElementById('authStatus').innerText = '';
     const tabs = document.querySelectorAll('.auth-tab');
     tabs[0].classList.toggle('active', tab === 'signup');
     tabs[1].classList.toggle('active', tab === 'login');
@@ -469,7 +453,7 @@
   }
 
   async function handleDeleteAccount() {
-    const confirmDelete = confirm("アカウントを削除しますか？\n（同じメールアドレスで再登録が可能になります）");
+    const confirmDelete = confirm("アカウントを削除しますか？");
     if (!confirmDelete) return;
 
     try {
@@ -491,66 +475,72 @@
     }
   }
 
-  // 🔄 TikTok URLからプロファイル情報を自動解析・取得する関数
+  // 🚀 TikTok公開Webページからプロファイル情報を直接解析（HTMLスクレイピング）
   async function autoFetchTikTokAccount(rawUrl, isManualClick = true) {
     const status = document.getElementById('accStatus');
-    if (isManualClick) status.innerText = "⏳ TikTokから最新アカウントデータをリアルタイム取得中...";
+    if (isManualClick) status.innerText = "⏳ TikTokから最新アカウントデータを取得中...";
 
-    let username = "@supnohe";
+    let uniqueId = "supnohe";
     const match = rawUrl.match(/@([a-zA-Z0-9_\.\-]+)/);
-    if (match) username = `@${match[1]}`;
+    if (match) uniqueId = match[1];
 
     try {
-      // APIを利用してアカウント情報を自動抽出
-      const apiUrl = `https://tiktok-downloader-download-tiktok-videos-without-watermark.p.rapidapi.com/rich_response/index?url=${encodeURIComponent(rawUrl)}`;
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'x-rapidapi-key': RAPID_API_KEY,
-          'x-rapidapi-host': 'tiktok-downloader-download-tiktok-videos-without-watermark.p.rapidapi.com'
-        }
-      });
-
-      const resData = await response.json();
+      // CORS回避用プロキシを経由してプロファイルHTMLを取得
+      const targetUrl = `https://www.tiktok.com/@${uniqueId}`;
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
       
-      // データ構造からフォロワー・いいね・動画数を抽出（取得できた場合）
-      const author = resData.author || resData.data?.author || {};
-      const followers = author.follower_count || author.followers || document.getElementById('inFollowers').value || 0;
-      const likes = author.heart_count || author.total_favorited || document.getElementById('inLikes').value || 0;
-      const videos = author.video_count || author.aweme_count || document.getElementById('inVideos').value || 0;
+      const response = await fetch(proxyUrl);
+      const resData = await response.json();
+      const htmlText = resData.contents || "";
 
-      // UIに数値を適用
-      document.getElementById('inFollowers').value = followers;
-      document.getElementById('inLikes').value = likes;
-      document.getElementById('inVideos').value = videos;
+      let followers = 0;
+      let likes = 0;
+      let videos = 0;
 
-      document.getElementById('accUsername').innerText = username;
+      // TikTokページのJSONオブジェクト（SIGI_STATE / __UNIVERSAL_DATA_FOR_REHYDRATION__）から数字を自動抽出
+      const jsonMatch = htmlText.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application\/json">(.*?)<\/script>/s) 
+                     || htmlText.match(/<script id="SIGI_STATE" type="application\/json">(.*?)<\/script>/s);
+
+      if (jsonMatch && jsonMatch[1]) {
+        const jsonData = JSON.parse(jsonMatch[1]);
+        const userModule = jsonData.__DEFAULT_SCOPE__?.['webapp.user-detail']?.userInfo 
+                        || jsonData.UserModule?.users?.[uniqueId] 
+                        || {};
+        const stats = userModule.stats || jsonData.__DEFAULT_SCOPE__?.['webapp.user-detail']?.userInfo?.stats || {};
+
+        followers = stats.followerCount || 0;
+        likes = stats.heartCount || stats.heart || 0;
+        videos = stats.videoCount || 0;
+      }
+
+      // 代替抽出（メタタグからの数字読み込み）
+      if (followers === 0) {
+        const metaMatch = htmlText.match(/"followerCount":(\d+)/);
+        if (metaMatch) followers = parseInt(metaMatch[1]);
+      }
+      if (likes === 0) {
+        const metaMatch = htmlText.match(/"heartCount":(\d+)/);
+        if (metaMatch) likes = parseInt(metaMatch[1]);
+      }
+      if (videos === 0) {
+        const metaMatch = htmlText.match(/"videoCount":(\d+)/);
+        if (metaMatch) videos = parseInt(metaMatch[1]);
+      }
+
+      // 画面反映
+      document.getElementById('accUsername').innerText = `@${uniqueId}`;
       document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
       document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
       document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
 
-      // ローカルストレージに保存
-      const accData = { url: rawUrl, username, followers, likes, videos };
+      const accData = { url: rawUrl, username: `@${uniqueId}`, followers, likes, videos };
       localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
-      if (isManualClick) status.innerText = `✅ ${username} のリアルタイム最新データを自動取得して更新しました！`;
+      if (isManualClick) status.innerText = `✅ @${uniqueId} の最新データを自動同期しました！`;
 
     } catch (err) {
       console.error(err);
-      // 自動取得が難しかった場合の手動フォールバック処理
-      const followers = document.getElementById('inFollowers').value || 0;
-      const likes = document.getElementById('inLikes').value || 0;
-      const videos = document.getElementById('inVideos').value || 0;
-
-      document.getElementById('accUsername').innerText = username;
-      document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
-      document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
-      document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
-
-      const accData = { url: rawUrl, username, followers, likes, videos };
-      localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
-
-      if (isManualClick) status.innerText = `✅ ${username} の情報を更新しました！`;
+      if (isManualClick) status.innerText = "⚠️ データの自動取得に失敗しました。URLを確認してください。";
     }
   }
 
@@ -635,40 +625,18 @@
     }
   }
 
-  async function fetchTikTokMetaData(url) {
-    const cleanUrl = url.split('?')[0];
-    const apiUrl = `https://tiktok-downloader-download-tiktok-videos-without-watermark.p.rapidapi.com/rich_response/index?url=${encodeURIComponent(cleanUrl)}`;
-    
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'x-rapidapi-key': RAPID_API_KEY,
-        'x-rapidapi-host': 'tiktok-downloader-download-tiktok-videos-without-watermark.p.rapidapi.com'
-      }
-    });
-
-    return await response.json();
-  }
-
   async function addTikTokKnowledge() {
     const rawUrl = document.getElementById('tiktokUrl').value;
     const status = document.getElementById('refStatus');
 
     if (!rawUrl) return alert("TikTok URLを入力してください");
 
-    status.innerText = "⏳ TikTokデータ取得中...";
+    status.innerText = "⏳ AIがナレッジ抽出中...";
 
     try {
-      const metaData = await fetchTikTokMetaData(rawUrl);
-      const originalTitle = metaData.title || metaData.description || metaData.data?.title || `TikTok参考動画 (${new Date().toLocaleDateString()})`;
-
-      status.innerText = "⏳ AIがナレッジ抽出中...";
-
       const promptText = `
-あなたはプロのSNS動画マーケターです。以下のTikTok動画メタデータをもとに、このバズ動画の特徴を簡潔にまとめてください。
-
-【TikTokデータ】
-${JSON.stringify(metaData, null, 2)}
+あなたはプロのSNS動画マーケターです。以下のTikTok動画URLから読み取れる構成要素を分析し、バズ動画のナレッジとして要約してください。
+URL: ${rawUrl}
 `;
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
@@ -684,11 +652,11 @@ ${JSON.stringify(metaData, null, 2)}
 
       const { error: dbError } = await supabaseClient
         .from('reference_videos')
-        .insert([{ title: originalTitle, features: features, user_id: currentUser.id }]);
+        .insert([{ title: `TikTok参考動画 (${new Date().toLocaleDateString()})`, features: features, user_id: currentUser.id }]);
 
       if (dbError) throw new Error(dbError.message);
 
-      status.innerText = `✅ ナレッジインポート完了！（${originalTitle}）`;
+      status.innerText = `✅ ナレッジインポート完了！`;
       document.getElementById('tiktokUrl').value = "";
 
     } catch (error) {
