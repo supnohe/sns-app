@@ -319,7 +319,7 @@
               <label>📁 分析用Excelデータ (.xlsx) を読み込む（任意）</label>
               <input type="file" id="excelFilesInput" class="form-input" accept=".xlsx, .xls, .csv" multiple onchange="handleExcelUpload(event)">
             </div>
-            <p id="excelStatus" style="font-size: 12px; color: #38bdf8; margin-bottom: 16px;">※各動画の数値（再生・いいね数）を入力・同期して傾向レポートを作成できます。</p>
+            <p id="excelStatus" style="font-size: 12px; color: #38bdf8; margin-bottom: 16px;">※各動画の数値枠（再生・いいね数など）は直接編集・手動入力で永続保存できます。</p>
 
             <!-- 🔗 URL追加フォーム -->
             <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
@@ -327,7 +327,6 @@
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <input type="text" id="recentVideoUrlInput" class="form-input" style="flex: 1; min-width: 200px;" placeholder="https://www.tiktok.com/@supnohe/video/...">
                 <button type="button" class="btn btn-secondary" style="width: auto; flex-shrink: 0;" onclick="handleAddRecentVideoUrl(event)">追加</button>
-                <button type="button" class="btn" style="width: auto; flex-shrink: 0; background: #0284c7; color: white;" onclick="refreshAllRecentMetrics(event)">🔄 最新数値に更新</button>
               </div>
               <p id="recentUrlStatus" style="font-size: 12px; color: #38bdf8; margin-top: 6px;"></p>
             </div>
@@ -335,7 +334,7 @@
             <!-- 📝 蓄積された直近投稿タイトル5個 -->
             <div style="margin-top: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📋 登録済みの直近5投稿（再生数・いいね数など直接入力可能）</label>
+                <label style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📋 登録済みの直近5投稿（数値入力は自動保存されます）</label>
                 <button type="button" style="background:transparent; border:none; color: var(--text-muted); font-size:11px; cursor:pointer;" onclick="clearAllRecentTitles()">全クリア</button>
               </div>
               <ul id="recentTitlesList" class="title-history-list">
@@ -721,13 +720,13 @@
           </div>
           <input type="date" class="date-input-inline" value="${dateVal}" onchange="updateRecentDate(${index}, this.value)">
           <span style="font-size:11px; color:var(--text-muted);">再生:</span>
-          <input type="number" class="num-input-inline" value="${views}" placeholder="再生数" onchange="updateRecentMetrics(${index}, 'views', this.value)">
+          <input type="number" class="num-input-inline" value="${views}" placeholder="0" onchange="updateRecentMetrics(${index}, 'views', this.value)">
           <span style="font-size:11px; color:var(--text-muted);">いいね:</span>
-          <input type="number" class="num-input-inline" value="${likes}" placeholder="いいね" onchange="updateRecentMetrics(${index}, 'likes', this.value)">
+          <input type="number" class="num-input-inline" value="${likes}" placeholder="0" onchange="updateRecentMetrics(${index}, 'likes', this.value)">
           <span style="font-size:11px; color:var(--text-muted);">コメ:</span>
-          <input type="number" class="num-input-inline" value="${comments}" placeholder="コメント" onchange="updateRecentMetrics(${index}, 'comments', this.value)">
+          <input type="number" class="num-input-inline" value="${comments}" placeholder="0" onchange="updateRecentMetrics(${index}, 'comments', this.value)">
           <span style="font-size:11px; color:var(--text-muted);">シェア:</span>
-          <input type="number" class="num-input-inline" value="${shares}" placeholder="シェア" onchange="updateRecentMetrics(${index}, 'shares', this.value)">
+          <input type="number" class="num-input-inline" value="${shares}" placeholder="0" onchange="updateRecentMetrics(${index}, 'shares', this.value)">
           <button type="button" class="edit-title-btn" onclick="editRecentTitle(${index})">編集</button>
           <button type="button" class="delete-title-btn" onclick="deleteRecentTitle(${index})">削除</button>
         </li>
@@ -786,7 +785,7 @@
 
     const cleanUrl = rawUrl.split('?')[0];
     status.style.color = "#38bdf8";
-    status.innerText = "⏳ 投稿情報を取得中...";
+    status.innerText = "⏳ 投稿情報を追加中...";
 
     try {
       const apiRes = await fetch(`/api/tiktok-video?url=${encodeURIComponent(cleanUrl)}`);
@@ -798,17 +797,17 @@
         date: resData.date || "2026/08/18",
         isoDate: resData.isoDate || "2026-08-18",
         timestamp: resData.timestamp || Date.now(),
-        views: resData.metrics?.views || 0,
-        likes: resData.metrics?.likes || 0,
-        comments: resData.metrics?.comments || 0,
-        shares: resData.metrics?.shares || 0
+        views: 0,
+        likes: 0,
+        comments: 0,
+        shares: 0
       };
 
       storedRecentVideos.push(newItem);
       sortAndSaveRecentVideos();
 
       status.style.color = "#4ade80";
-      status.innerText = `✅ 「${newItem.title}」を追加しました！`;
+      status.innerText = `✅ 「${newItem.title}」を追加しました！再生数やいいね数を右の枠に入力してください。`;
       urlInput.value = "";
 
     } catch (err) {
@@ -816,50 +815,6 @@
       status.style.color = "#f87171";
       status.innerText = "❌ エラー: " + err.message;
     }
-  }
-
-  // 🔄 高速更新処理（フリーズ完全防護）
-  async function refreshAllRecentMetrics(event) {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-
-    const status = document.getElementById('recentUrlStatus');
-    if (!storedRecentVideos || storedRecentVideos.length === 0) {
-      return alert("登録済みの動画がありません。まず動画URLを追加してください。");
-    }
-
-    status.style.color = "#38bdf8";
-    status.innerText = `⏳ 登録済み動画の同期を完了しました`;
-
-    // フリーズを防ぐため、タイムアウト付き非同期処理
-    try {
-      for (let i = 0; i < storedRecentVideos.length; i++) {
-        const cleanUrl = storedRecentVideos[i].url;
-        if (!cleanUrl) continue;
-
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒で切り上げ
-
-          const apiRes = await fetch(`/api/tiktok-video?url=${encodeURIComponent(cleanUrl)}`, { signal: controller.signal });
-          clearTimeout(timeoutId);
-          const resData = await apiRes.json();
-
-          if (resData.success && resData.metrics) {
-            if (resData.metrics.views > 0) storedRecentVideos[i].views = resData.metrics.views;
-            if (resData.metrics.likes > 0) storedRecentVideos[i].likes = resData.metrics.likes;
-            if (resData.metrics.comments > 0) storedRecentVideos[i].comments = resData.metrics.comments;
-            if (resData.metrics.shares > 0) storedRecentVideos[i].shares = resData.metrics.shares;
-          }
-        } catch(e) {}
-      }
-    } catch (e) {}
-
-    sortAndSaveRecentVideos();
-    status.style.color = "#4ade80";
-    status.innerText = `✅ 同期処理が完了しました！（数値枠から直接編集も可能です）`;
   }
 
   async function handleExcelUpload(event) {
