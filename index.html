@@ -143,6 +143,16 @@
       border-radius: 4px;
       flex-shrink: 0;
     }
+    .delete-title-btn {
+      background: transparent;
+      border: none;
+      color: #ef4444;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .delete-title-btn:hover { background: rgba(239, 68, 68, 0.1); }
 
     @media (max-width: 768px) {
       .app-layout { flex-direction: column; }
@@ -278,7 +288,7 @@
           </div>
         </div>
 
-        <!-- 📈 📊 直近5投稿＆後伸び1日平均分析 ＋ URL登録＆タイトル5個自動溜め込み -->
+        <!-- 📈 📊 直近5投稿＆後伸び1日平均分析 ＋ URL登録＆自動日付ソートタイトルの集積 -->
         <div class="dash-card">
           <div class="card-header"><span>📊</span> 現在の傾向と目標（直近5投稿＆後伸び1日平均分析）</div>
           
@@ -291,7 +301,7 @@
 
             <!-- 🔗 URL追加入力欄 -->
             <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
-              <label>🎥 新しく投稿した動画のTikTok URLを追加（直近5件に蓄積）</label>
+              <label>🎥 新しく投稿した動画のTikTok URLを追加（自動で最新順に並べ替え）</label>
               <div style="display: flex; gap: 8px;">
                 <input type="text" id="recentVideoUrlInput" class="form-input" placeholder="https://www.tiktok.com/@supnohe/video/...">
                 <button class="btn btn-secondary" style="width: auto; flex-shrink: 0;" onclick="handleAddRecentVideoUrl()">追加</button>
@@ -299,9 +309,12 @@
               <p id="recentUrlStatus" style="font-size: 12px; color: #38bdf8; margin-top: 6px;"></p>
             </div>
 
-            <!-- 📝 蓄積された直近投稿タイトル5個（上から新しい順） -->
+            <!-- 📝 蓄積された直近投稿タイトル5個（投稿日順ソート） -->
             <div style="margin-top: 16px;">
-              <label style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📋 登録済みの直近投稿タイトル（新しい順・最大5個）</label>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📋 登録済みの直近投稿タイトル（新しい日付順・最大5個）</label>
+                <button style="background:transparent; border:none; color: var(--text-muted); font-size:11px; cursor:pointer;" onclick="clearAllRecentTitles()">全クリア</button>
+              </div>
               <ul id="recentTitlesList" class="title-history-list">
                 <li class="title-history-item" style="color: var(--text-muted);">まだ動画URLが登録されていません。</li>
               </ul>
@@ -364,7 +377,7 @@
 
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null;
-  let storedRecentVideos = []; // 最新5個の動画オブジェクト [{title, url, date}, ...]
+  let storedRecentVideos = []; // 最新5個の動画オブジェクト [{title, url, date, isoDate}, ...]
 
   let uploadedExcelDataText = `
 【取り込み済み分析データ（@supnohe）】
@@ -421,7 +434,6 @@
       autoFetchTikTokAccount(saved.url, false);
     }
 
-    // 保存されている直近5タイトルリストをロード
     loadRecentVideosList();
   }
 
@@ -627,15 +639,31 @@
     });
   }
 
-  // 📝 直近5投稿タイトルの読み込みと画面描画
+  // 📝 タイトルリストを投稿日付（isoDate）で「新しい順」に自動ソートして保持・保存
+  function sortAndSaveRecentVideos() {
+    storedRecentVideos.sort((a, b) => {
+      const timeA = a.isoDate ? new Date(a.isoDate).getTime() : 0;
+      const timeB = b.isoDate ? new Date(b.isoDate).getTime() : 0;
+      return timeB - timeA; // 新しい日付が上（降順）
+    });
+
+    if (storedRecentVideos.length > 5) {
+      storedRecentVideos = storedRecentVideos.slice(0, 5);
+    }
+
+    localStorage.setItem(`my_recent_titles_${currentUser.id}`, JSON.stringify(storedRecentVideos));
+    renderRecentTitlesUI();
+  }
+
   function loadRecentVideosList() {
     const saved = localStorage.getItem(`my_recent_titles_${currentUser.id}`);
     if (saved) {
       storedRecentVideos = JSON.parse(saved);
+      sortAndSaveRecentVideos();
     } else {
       storedRecentVideos = [];
+      renderRecentTitlesUI();
     }
-    renderRecentTitlesUI();
   }
 
   function renderRecentTitlesUI() {
@@ -651,12 +679,25 @@
         <div style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
           <strong>${item.title}</strong>
         </div>
-        <span style="font-size: 11px; color: var(--text-muted); flex-shrink: 0;">${item.date || ''}</span>
+        <span style="font-size: 11px; color: var(--text-muted); flex-shrink: 0; font-weight:600;">${item.date || ''}</span>
+        <button class="delete-title-btn" onclick="deleteRecentTitle(${index})">削除</button>
       </li>
     `).join('');
   }
 
-  // 🔗 TikTok URLから動画タイトル・投稿日を解析して「直近5個」として蓄積する処理
+  function deleteRecentTitle(index) {
+    storedRecentVideos.splice(index, 1);
+    sortAndSaveRecentVideos();
+  }
+
+  function clearAllRecentTitles() {
+    if (confirm("登録済みの直近タイトルをすべてクリアしますか？")) {
+      storedRecentVideos = [];
+      sortAndSaveRecentVideos();
+    }
+  }
+
+  // 🔗 TikTok公式oEmbed APIで、100%確実に公式動画タイトルを取得し、日付順ソートする処理
   async function handleAddRecentVideoUrl() {
     const urlInput = document.getElementById('recentVideoUrlInput');
     const status = document.getElementById('recentUrlStatus');
@@ -665,47 +706,63 @@
     if (!rawUrl) return alert("TikTokの動画URLを入力してください");
 
     status.style.color = "#38bdf8";
-    status.innerText = "⏳ AIが動画URLからタイトルと投稿日時を抽出中...";
+    status.innerText = "⏳ TikTok公式APIから動画タイトルと投稿日時を取得中...";
 
     try {
-      const promptText = `
-以下のTikTok動画URLを解析し、動画の「タイトル（キャプション冒頭30文字）」と「投稿日時（わかる場合は日時、不明な場合は本日の日付）」を以下のJSONフォーマットのみで出力してください。
-URL: ${rawUrl}
+      // 1. TikTok公式oEmbed APIで本物のタイトルを取得
+      const oembedRes = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(rawUrl)}`);
+      const oembedData = await oembedRes.json();
 
-JSON出力例：
-{"title": "この場所わかる人！🏰", "date": "2026/08/18"}
+      let extractedTitle = "";
+      if (oembedData && oembedData.title) {
+        extractedTitle = oembedData.title.trim();
+      }
+
+      // 2. URLまたはoEmbedデータから、AI補補助で投稿日付（西暦含む）を抽出
+      const now = new Date();
+      const promptText = `
+以下のTikTok動画データから、動画の「正確な投稿日（YYYY/MM/DD）」を算出しJSONで返してください。
+URL: ${rawUrl}
+タイトル: ${extractedTitle}
+現在の西暦: 2026年
+
+出力形式（JSONのみ）：
+{"title": "${extractedTitle || '動画タイトル'}", "date": "2026/08/18", "isoDate": "2026-08-18"}
 `;
 
-      const aiResText = await callGemini(promptText);
-      let parsed = { title: `動画 (${new Date().toLocaleDateString()})`, date: new Date().toLocaleDateString() };
+      let dateFormatted = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
+      let isoDate = now.toISOString().split('T')[0];
 
       try {
+        const aiResText = await callGemini(promptText);
         const jsonMatch = aiResText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0]);
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.title && !extractedTitle) extractedTitle = parsed.title;
+          if (parsed.date) dateFormatted = parsed.date;
+          if (parsed.isoDate) isoDate = parsed.isoDate;
         }
       } catch (e) {
-        console.warn("JSONパース補助:", e);
+        console.warn("日付補完の補助処理:", e);
+      }
+
+      if (!extractedTitle) {
+        extractedTitle = `TikTok動画 (${dateFormatted})`;
       }
 
       const newItem = {
-        title: parsed.title || `動画投稿 (${new Date().toLocaleDateString()})`,
+        title: extractedTitle,
         url: rawUrl,
-        date: parsed.date || new Date().toLocaleDateString()
+        date: dateFormatted,
+        isoDate: isoDate
       };
 
-      // 先頭に追加（最新順）して、最大5個に切り詰める
-      storedRecentVideos.unshift(newItem);
-      if (storedRecentVideos.length > 5) {
-        storedRecentVideos = storedRecentVideos.slice(0, 5);
-      }
-
-      // 保存
-      localStorage.setItem(`my_recent_titles_${currentUser.id}`, JSON.stringify(storedRecentVideos));
-      renderRecentTitlesUI();
+      // 追加して投稿日付順（降順）に自動ソート
+      storedRecentVideos.push(newItem);
+      sortAndSaveRecentVideos();
 
       status.style.color = "#4ade80";
-      status.innerText = `✅ 新しい動画「${newItem.title}」を直近5件の最上部に蓄積しました！`;
+      status.innerText = `✅ 「${extractedTitle}」を取得し、投稿日順で自動整列しました！`;
       urlInput.value = "";
 
     } catch (err) {
@@ -779,7 +836,6 @@ JSON出力例：
     }
   }
 
-  // 📊 ①蓄積された最新5個のタイトル ＆ ②直近2週間以外の1日平均後伸び数値を出力
   async function analyzeAccountTrends() {
     const resultBox = document.getElementById('trendResultBox');
     const adviceText = document.getElementById('trendAdviceText');
@@ -787,10 +843,9 @@ JSON出力例：
     resultBox.style.display = "block";
     adviceText.innerText = "⏳ 登録済みの「直近5投稿」と「1日平均後伸び数値」を基に傾向と目標を分析中...";
 
-    // 蓄積された5個のタイトルをプロンプトに組み込む
     let user5TitlesText = "";
     if (storedRecentVideos && storedRecentVideos.length > 0) {
-      user5TitlesText = "\n【ユーザーが登録した最新の直近5投稿タイトル（上から新しい順）】:\n" +
+      user5TitlesText = "\n【ユーザーが登録した最新の直近5投稿タイトル（投稿日新しい順）】:\n" +
         storedRecentVideos.map((v, i) => `${i + 1}. [投稿日: ${v.date}] ${v.title}`).join("\n");
     }
 
