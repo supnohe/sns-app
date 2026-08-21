@@ -122,6 +122,28 @@
     .result-box { background: #090d16; border: 1px solid var(--accent); border-radius: 12px; padding: 20px; margin-top: 20px; display: none; }
     .advice-text { white-space: pre-wrap; font-size: 14px; line-height: 1.7; color: #e2e8f0; }
 
+    .title-history-list { list-style: none; margin-top: 10px; }
+    .title-history-item {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .title-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
     @media (max-width: 768px) {
       .app-layout { flex-direction: column; }
       .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); padding: 16px 20px; }
@@ -256,16 +278,34 @@
           </div>
         </div>
 
-        <!-- 📈 📊 直近5投稿＆他動画1日平均獲得数の傾向分析 -->
+        <!-- 📈 📊 直近5投稿＆後伸び1日平均分析 ＋ URL登録＆タイトル5個自動溜め込み -->
         <div class="dash-card">
           <div class="card-header"><span>📊</span> 現在の傾向と目標（直近5投稿＆後伸び1日平均分析）</div>
           
           <div class="sub-section" style="margin-bottom: 16px;">
-            <div class="form-group" style="margin-bottom: 8px;">
-              <label>📁 分析用Excelデータ (.xlsx) を読み込む（複数選択可）</label>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label>📁 分析用Excelデータ (.xlsx) を読み込む（任意）</label>
               <input type="file" id="excelFilesInput" class="form-input" accept=".xlsx, .xls, .csv" multiple onchange="handleExcelUpload(event)">
             </div>
-            <p id="excelStatus" style="font-size: 12px; color: #38bdf8;">※直近5投稿データ＆その他動画の1日平均獲得数データを適用済みです。</p>
+            <p id="excelStatus" style="font-size: 12px; color: #38bdf8; margin-bottom: 16px;">※直近5投稿データ＆その他動画の1日平均獲得数データを適用済みです。</p>
+
+            <!-- 🔗 URL追加入力欄 -->
+            <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
+              <label>🎥 新しく投稿した動画のTikTok URLを追加（直近5件に蓄積）</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="recentVideoUrlInput" class="form-input" placeholder="https://www.tiktok.com/@supnohe/video/...">
+                <button class="btn btn-secondary" style="width: auto; flex-shrink: 0;" onclick="handleAddRecentVideoUrl()">追加</button>
+              </div>
+              <p id="recentUrlStatus" style="font-size: 12px; color: #38bdf8; margin-top: 6px;"></p>
+            </div>
+
+            <!-- 📝 蓄積された直近投稿タイトル5個（上から新しい順） -->
+            <div style="margin-top: 16px;">
+              <label style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📋 登録済みの直近投稿タイトル（新しい順・最大5個）</label>
+              <ul id="recentTitlesList" class="title-history-list">
+                <li class="title-history-item" style="color: var(--text-muted);">まだ動画URLが登録されていません。</li>
+              </ul>
+            </div>
           </div>
 
           <button class="btn btn-primary" onclick="analyzeAccountTrends()">現在の傾向と目標レポートを生成</button>
@@ -324,8 +364,8 @@
 
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null;
+  let storedRecentVideos = []; // 最新5個の動画オブジェクト [{title, url, date}, ...]
 
-  // 📊 ご指定の計算式で算出した標準分析データ
   let uploadedExcelDataText = `
 【取り込み済み分析データ（@supnohe）】
 ■ 1. 直近の投稿5個のデータ
@@ -380,6 +420,9 @@
     if (saved.url) {
       autoFetchTikTokAccount(saved.url, false);
     }
+
+    // 保存されている直近5タイトルリストをロード
+    loadRecentVideosList();
   }
 
   function switchAuthTab(tab) {
@@ -512,6 +555,7 @@
 
     try {
       localStorage.removeItem(`my_tiktok_acc_${currentUser.id}`);
+      localStorage.removeItem(`my_recent_titles_${currentUser.id}`);
       await supabaseClient.from('reference_videos').delete().eq('user_id', currentUser.id);
       await supabaseClient.from('video_analyses').delete().eq('user_id', currentUser.id);
 
@@ -583,6 +627,94 @@
     });
   }
 
+  // 📝 直近5投稿タイトルの読み込みと画面描画
+  function loadRecentVideosList() {
+    const saved = localStorage.getItem(`my_recent_titles_${currentUser.id}`);
+    if (saved) {
+      storedRecentVideos = JSON.parse(saved);
+    } else {
+      storedRecentVideos = [];
+    }
+    renderRecentTitlesUI();
+  }
+
+  function renderRecentTitlesUI() {
+    const ul = document.getElementById('recentTitlesList');
+    if (!storedRecentVideos || storedRecentVideos.length === 0) {
+      ul.innerHTML = `<li class="title-history-item" style="color: var(--text-muted);">まだ動画URLが登録されていません。上の入力欄から追加してください。</li>`;
+      return;
+    }
+
+    ul.innerHTML = storedRecentVideos.map((item, index) => `
+      <li class="title-history-item">
+        <span class="title-badge">${index === 0 ? '最新 LATEST' : 'No.' + (index + 1)}</span>
+        <div style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          <strong>${item.title}</strong>
+        </div>
+        <span style="font-size: 11px; color: var(--text-muted); flex-shrink: 0;">${item.date || ''}</span>
+      </li>
+    `).join('');
+  }
+
+  // 🔗 TikTok URLから動画タイトル・投稿日を解析して「直近5個」として蓄積する処理
+  async function handleAddRecentVideoUrl() {
+    const urlInput = document.getElementById('recentVideoUrlInput');
+    const status = document.getElementById('recentUrlStatus');
+    const rawUrl = urlInput.value.trim();
+
+    if (!rawUrl) return alert("TikTokの動画URLを入力してください");
+
+    status.style.color = "#38bdf8";
+    status.innerText = "⏳ AIが動画URLからタイトルと投稿日時を抽出中...";
+
+    try {
+      const promptText = `
+以下のTikTok動画URLを解析し、動画の「タイトル（キャプション冒頭30文字）」と「投稿日時（わかる場合は日時、不明な場合は本日の日付）」を以下のJSONフォーマットのみで出力してください。
+URL: ${rawUrl}
+
+JSON出力例：
+{"title": "この場所わかる人！🏰", "date": "2026/08/18"}
+`;
+
+      const aiResText = await callGemini(promptText);
+      let parsed = { title: `動画 (${new Date().toLocaleDateString()})`, date: new Date().toLocaleDateString() };
+
+      try {
+        const jsonMatch = aiResText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+        console.warn("JSONパース補助:", e);
+      }
+
+      const newItem = {
+        title: parsed.title || `動画投稿 (${new Date().toLocaleDateString()})`,
+        url: rawUrl,
+        date: parsed.date || new Date().toLocaleDateString()
+      };
+
+      // 先頭に追加（最新順）して、最大5個に切り詰める
+      storedRecentVideos.unshift(newItem);
+      if (storedRecentVideos.length > 5) {
+        storedRecentVideos = storedRecentVideos.slice(0, 5);
+      }
+
+      // 保存
+      localStorage.setItem(`my_recent_titles_${currentUser.id}`, JSON.stringify(storedRecentVideos));
+      renderRecentTitlesUI();
+
+      status.style.color = "#4ade80";
+      status.innerText = `✅ 新しい動画「${newItem.title}」を直近5件の最上部に蓄積しました！`;
+      urlInput.value = "";
+
+    } catch (err) {
+      console.error(err);
+      status.style.color = "#f87171";
+      status.innerText = "❌ エラー: " + err.message;
+    }
+  }
+
   async function handleExcelUpload(event) {
     const files = event.target.files;
     const status = document.getElementById('excelStatus');
@@ -647,13 +779,20 @@
     }
   }
 
-  // 📊 ①直近の投稿5個のデータ ＆ ②直近2週間以外の1日平均後伸び数値を出力
+  // 📊 ①蓄積された最新5個のタイトル ＆ ②直近2週間以外の1日平均後伸び数値を出力
   async function analyzeAccountTrends() {
     const resultBox = document.getElementById('trendResultBox');
     const adviceText = document.getElementById('trendAdviceText');
 
     resultBox.style.display = "block";
-    adviceText.innerText = "⏳ 「直近5投稿＆直近2週間以外の1日平均数値」を基に傾向と目標を分析中...";
+    adviceText.innerText = "⏳ 登録済みの「直近5投稿」と「1日平均後伸び数値」を基に傾向と目標を分析中...";
+
+    // 蓄積された5個のタイトルをプロンプトに組み込む
+    let user5TitlesText = "";
+    if (storedRecentVideos && storedRecentVideos.length > 0) {
+      user5TitlesText = "\n【ユーザーが登録した最新の直近5投稿タイトル（上から新しい順）】:\n" +
+        storedRecentVideos.map((v, i) => `${i + 1}. [投稿日: ${v.date}] ${v.title}`).join("\n");
+    }
 
     try {
       const promptText = `
@@ -662,18 +801,19 @@
 
 【アカウント分析データ】
 ${uploadedExcelDataText}
+${user5TitlesText}
 
 必ず以下の見出し・フォーマットをそのまま維持して出力してください：
 
 【現在の傾向】
-・まとめ: 直近の投稿5個の動向および過去動画（ストック群）の1日平均獲得数を含めた全体傾向の要約。
+・まとめ: 登録された直近の投稿5個の動向および過去動画（ストック群）の1日平均獲得数を含めた全体傾向の要約。
 ・性別割合: 女性 53.0% / 男性 44.0% / その他 3.0%
 ・主要視聴地域: 日本 29.8% / フィリピン 4.5% / ブラジル 3.2%
 ・アクティブ時間帯: 23:00〜1:00（ピーク時4,300〜4,765人がアクティブ）
-・直近の投稿5個のデータ:
-  - 平均再生数: 836,252.8 回
-  - 平均いいね数: 53,230.8 件
-  - 平均シェア数: 845.0 件
+・直近の投稿5個のデータ（タイトル一覧含む）:
+  - 蓄積されている直近5投稿タイトル: ${user5TitlesText ? '登録されたタイトルリストを新しい順に列挙' : '1.この場所わかる人！ 2.クセになる振り付け 3.この疾走感 4.説明がありません 5.苦手なので大目に'}
+  - 直近5投稿 平均再生数: 836,252.8 回
+  - 直近5投稿 平均いいね数: 53,230.8 件
   - エンゲージメント率: 6.47 %
 ・直近2週間に投稿された動画以外の1日平均獲得数値 (後伸びストック効果):
   - 1日平均再生数: 9,136.6 回 / 日
