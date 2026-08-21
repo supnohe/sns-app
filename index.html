@@ -213,7 +213,7 @@
           <label>メールアドレス</label>
           <input type="email" id="signupEmail" class="form-input" placeholder="name@company.com">
         </div>
-        <button class="btn btn-primary" onclick="handleSendSignupCode()">認証コードを送信する</button>
+        <button type="button" class="btn btn-primary" onclick="handleSendSignupCode()">認証コードを送信する</button>
       </div>
 
       <div id="signupStep2" style="display: none;">
@@ -221,8 +221,8 @@
           <label>メールに届いた6桁の認証コード</label>
           <input type="text" id="signupCode" class="form-input" placeholder="123456" maxlength="6" style="text-align:center; font-size:20px; letter-spacing:6px; font-weight:bold;">
         </div>
-        <button class="btn btn-primary" onclick="handleVerifySignupCode()">コードを認証する</button>
-        <button class="btn btn-secondary" style="margin-top:8px; font-size:12px;" onclick="resetSignupStep()">入力し直す</button>
+        <button type="button" class="btn btn-primary" onclick="handleVerifySignupCode()">コードを認証する</button>
+        <button type="button" class="btn btn-secondary" style="margin-top:8px; font-size:12px;" onclick="resetSignupStep()">入力し直す</button>
       </div>
 
       <div id="signupStep3" style="display: none;">
@@ -231,7 +231,7 @@
           <label>パスワード（6文字以上）</label>
           <input type="password" id="signupPassword" class="form-input" placeholder="••••••••">
         </div>
-        <button class="btn btn-primary" onclick="handleSetPasswordAndFinish()">パスワードを保存して開始</button>
+        <button type="button" class="btn btn-primary" onclick="handleSetPasswordAndFinish()">パスワードを保存して開始</button>
       </div>
 
       <div id="loginForm" style="display: none;">
@@ -243,7 +243,7 @@
           <label>パスワード</label>
           <input type="password" id="loginPassword" class="form-input" placeholder="••••••••">
         </div>
-        <button class="btn btn-primary" onclick="handlePasswordLogin()">ログイン</button>
+        <button type="button" class="btn btn-primary" onclick="handlePasswordLogin()">ログイン</button>
       </div>
 
       <p id="authStatus" style="font-size: 12px; margin-top: 16px; text-align: center;"></p>
@@ -259,8 +259,8 @@
       </div>
       <div style="display: flex; align-items: center; gap: 12px;">
         <span id="userEmailDisplay" style="font-size: 12px; color: var(--text-muted);">-</span>
-        <button class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 12px;" onclick="handleSignOut()">ログアウト</button>
-        <button style="background: transparent; border: none; color: #ef4444; font-size: 12px; cursor: pointer;" onclick="handleDeleteAccount()">削除</button>
+        <button type="button" class="btn btn-secondary" style="width: auto; padding: 6px 12px; font-size: 12px;" onclick="handleSignOut()">ログアウト</button>
+        <button type="button" style="background: transparent; border: none; color: #ef4444; font-size: 12px; cursor: pointer;" onclick="handleDeleteAccount()">削除</button>
       </div>
     </div>
 
@@ -299,12 +299,12 @@
               <input type="text" id="inAccUrl" class="form-input" placeholder="https://www.tiktok.com/@supnohe">
             </div>
 
-            <button class="btn btn-primary" onclick="saveAccountData()">URLからデータをリアルタイム自動同期</button>
+            <button type="button" class="btn btn-primary" onclick="saveAccountData()">URLからデータをリアルタイム自動同期</button>
             <p id="accStatus" style="font-size: 12px; color: #38bdf8; margin-top: 8px;"></p>
           </div>
         </div>
 
-        <!-- 📈 📊 直近5投稿＆後伸び1日平均分析 ＋ URL＆投稿日入力フォーム -->
+        <!-- 📈 📊 直近5投稿＆後伸び1日平均分析 ＋ URL＆投稿日追加（ファイルダイアログ誤作動防護） -->
         <div class="dash-card">
           <div class="card-header"><span>📊</span> 現在の傾向と目標（直近5投稿＆後伸び1日平均分析）</div>
           
@@ -317,11 +317,10 @@
 
             <!-- 🔗 URL＋投稿日付入力フォーム -->
             <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
-              <label>🎥 新しく投稿した動画のTikTok URLと投稿日を追加（日付順に自動整列）</label>
+              <label>🎥 新しく投稿した動画のTikTok URLを追加（日付順に自動整列）</label>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <input type="text" id="recentVideoUrlInput" class="form-input" style="flex: 1; min-width: 220px;" placeholder="https://www.tiktok.com/@supnohe/video/...">
-                <input type="date" id="recentPostDateInput" class="date-input-inline" style="padding: 10px 12px; font-size: 13px;">
-                <button class="btn btn-secondary" style="width: auto; flex-shrink: 0;" onclick="handleAddRecentVideoUrl()">追加</button>
+                <button type="button" class="btn btn-secondary" style="width: auto; flex-shrink: 0;" onclick="handleAddRecentVideoUrl(event)">追加</button>
               </div>
               <p id="recentUrlStatus" style="font-size: 12px; color: #38bdf8; margin-top: 6px;"></p>
             </div>
@@ -330,7 +329,7 @@
             <div style="margin-top: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <label style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📋 登録済みの直近投稿タイトル（新しい日付順・最大5個）</label>
-                <button style="background:transparent; border:none; color: var(--text-muted); font-size:11px; cursor:pointer;" onclick="clearAllRecentTitles()">全クリア</button>
+                <button type="button" style="background:transparent; border:none; color: var(--text-muted); font-size:11px; cursor:pointer;" onclick="clearAllRecentTitles()">全クリア</button>
               </div>
               <ul id="recentTitlesList" class="title-history-list">
                 <li class="title-history-item" style="color: var(--text-muted);">まだ動画URLが登録されていません。</li>
@@ -338,7 +337,7 @@
             </div>
           </div>
 
-          <button class="btn btn-primary" onclick="analyzeAccountTrends()">現在の傾向と目標レポートを生成</button>
+          <button type="button" class="btn btn-primary" onclick="analyzeAccountTrends()">現在の傾向と目標レポートを生成</button>
 
           <div id="trendResultBox" class="result-box">
             <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">📊 直近5投稿＆ストック動画後伸びレポート</div>
@@ -353,7 +352,7 @@
           <div class="form-group">
             <label>🎥 参考動画ファイル (.mp4) をAI解析</label>
             <input type="file" id="refVideoFile" class="form-input" accept="video/*">
-            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="addVideoFileKnowledge()">映像・音声をAI構造解析</button>
+            <button type="button" class="btn btn-secondary" style="margin-top: 8px;" onclick="addVideoFileKnowledge()">映像・音声をAI構造解析</button>
           </div>
 
           <div class="divider-text">または</div>
@@ -361,7 +360,7 @@
           <div class="form-group">
             <label>🔗 TikTok URLからテキスト抽出</label>
             <input type="text" id="tiktokUrl" class="form-input" placeholder="https://www.tiktok.com/@.../video/...">
-            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="addTikTokKnowledge()">URL解析・ナレッジインポート</button>
+            <button type="button" class="btn btn-secondary" style="margin-top: 8px;" onclick="addTikTokKnowledge()">URL解析・ナレッジインポート</button>
           </div>
 
           <p id="refStatus" style="font-size: 12px; color: var(--text-muted); margin-top: 8px;"></p>
@@ -376,7 +375,7 @@
             <input type="file" id="myVideo" class="form-input" accept="video/*">
           </div>
 
-          <button class="btn btn-primary" onclick="analyzeMyVideo()">AI動画診断 & TikTok SEO投稿文・ハッシュタグ提案を実行</button>
+          <button type="button" class="btn btn-primary" onclick="analyzeMyVideo()">AI動画診断 & TikTok SEO投稿文・ハッシュタグ提案を実行</button>
 
           <div id="resultBox" class="result-box">
             <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">💡 AI診断分析 & 投稿作成レポート</div>
@@ -424,11 +423,6 @@
     } else {
       showAuthScreen();
     }
-
-    // 今日の日付を初期値にセット
-    const today = new Date().toISOString().split('T')[0];
-    const dateInput = document.getElementById('recentPostDateInput');
-    if (dateInput) dateInput.value = today;
   };
 
   function showAuthScreen() {
@@ -661,7 +655,6 @@
     });
   }
 
-  // 📝 日付（isoDate/date）をタイムスタンプへ厳密変換して降順ソート
   function parseDateToTimestamp(item) {
     if (item.isoDate) return new Date(item.isoDate).getTime();
     if (item.date) {
@@ -675,7 +668,7 @@
     storedRecentVideos.sort((a, b) => {
       const timeA = parseDateToTimestamp(a);
       const timeB = parseDateToTimestamp(b);
-      return timeB - timeA; // 新しい日付が上（降順）
+      return timeB - timeA;
     });
 
     if (storedRecentVideos.length > 5) {
@@ -714,8 +707,8 @@
             <strong style="color: #f8fafc;">${item.title}</strong>
           </div>
           <input type="date" class="date-input-inline" value="${dateVal}" onchange="updateRecentDate(${index}, this.value)">
-          <button class="edit-title-btn" onclick="editRecentTitle(${index})">編集</button>
-          <button class="delete-title-btn" onclick="deleteRecentTitle(${index})">削除</button>
+          <button type="button" class="edit-title-btn" onclick="editRecentTitle(${index})">編集</button>
+          <button type="button" class="delete-title-btn" onclick="deleteRecentTitle(${index})">削除</button>
         </li>
       `;
     }).join('');
@@ -751,17 +744,18 @@
     }
   }
 
-  // 🔗 プロキシ経由でキャプション取得 ＋ 選択された投稿日で確実に登録・ソート
-  async function handleAddRecentVideoUrl() {
+  // 🔗 プロキシ経由でキャプション取得 ＋ ボタンクリック時のファイル選択誤作動を完全防護
+  async function handleAddRecentVideoUrl(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
     const urlInput = document.getElementById('recentVideoUrlInput');
-    const dateInput = document.getElementById('recentPostDateInput');
     const status = document.getElementById('recentUrlStatus');
-    
     const rawUrl = urlInput.value.trim();
-    const selectedDateIso = dateInput.value;
 
     if (!rawUrl) return alert("TikTokの動画URLを入力してください");
-    if (!selectedDateIso) return alert("投稿日（カレンダー）を選択してください");
 
     status.style.color = "#38bdf8";
     status.innerText = "⏳ TikTok動画からキャプションを取得中...";
@@ -770,7 +764,6 @@
       let extractedTitle = "";
       const cleanUrl = rawUrl.split('?')[0];
 
-      // 1. プロキシ経由で og:description（キャプション）を取得
       try {
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(cleanUrl)}`;
         const res = await fetch(proxyUrl);
@@ -786,16 +779,16 @@
           }
         }
       } catch (e) {
-        console.warn("HTML取得失敗、手動入力へ切替:", e);
+        console.warn("HTML取得失敗:", e);
       }
 
       if (!extractedTitle || extractedTitle.includes("TikTok動画")) {
         extractedTitle = prompt("キャプションを入力してください:") || `動画`;
       }
 
-      // 日付のフォーマット作成
-      const parts = selectedDateIso.split('-');
-      const dateFormatted = `${parts[0]}/${parts[1]}/${parts[2]}`;
+      const today = new Date();
+      const selectedDateIso = today.toISOString().split('T')[0];
+      const dateFormatted = `${today.getFullYear()}/${String(today.getMonth()+1).padStart(2,'0')}/${String(today.getDate()).padStart(2,'0')}`;
 
       const newItem = {
         title: extractedTitle,
@@ -808,7 +801,7 @@
       sortAndSaveRecentVideos();
 
       status.style.color = "#4ade80";
-      status.innerText = `✅ 「${extractedTitle}」を登録し、新しい日付順（${dateFormatted}）で自動整理しました！`;
+      status.innerText = `✅ 「${extractedTitle}」を登録し、日付順に自動整理しました！`;
       urlInput.value = "";
 
     } catch (err) {
