@@ -256,22 +256,22 @@
           </div>
         </div>
 
-        <!-- 📈 📂 Excelデータ格納＆現在の傾向と目標分析 -->
+        <!-- 📈 📂 Excelデータ自動抽出（直近2週間自動フィルタ）＆傾向と目標AI分析 -->
         <div class="dash-card">
-          <div class="card-header"><span>📊</span> 現在の傾向と目標</div>
+          <div class="card-header"><span>📊</span> 現在の傾向と目標（直近2週間自動抽出分析）</div>
           
           <div class="sub-section" style="margin-bottom: 16px;">
             <div class="form-group" style="margin-bottom: 8px;">
-              <label>📁 分析用Excelデータ (.xlsx) の追加（任意）</label>
+              <label>📁 分析用Excelデータ (.xlsx) を読み込む（複数選択可）</label>
               <input type="file" id="excelFilesInput" class="form-input" accept=".xlsx, .xls, .csv" multiple onchange="handleExcelUpload(event)">
             </div>
-            <p id="excelStatus" style="font-size: 12px; color: #38bdf8;">※標準アナリティクスデータを適用済みです。</p>
+            <p id="excelStatus" style="font-size: 12px; color: #38bdf8;">※標準データを適用済みです。新しいファイルを読み込むと自動で直近14日分が抽出されます。</p>
           </div>
 
-          <button class="btn btn-primary" onclick="analyzeAccountTrends()">現在の傾向と目標レポートを生成</button>
+          <button class="btn btn-primary" onclick="analyzeAccountTrends()">直近2週間の傾向と目標レポートを生成</button>
 
           <div id="trendResultBox" class="result-box">
-            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">📊 現在の傾向と目標レポート</div>
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">📊 直近2週間の傾向・達成率レポート</div>
             <div id="trendAdviceText" class="advice-text">分析中...</div>
           </div>
         </div>
@@ -325,12 +325,19 @@
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null;
 
+  // 📊 標準の直近2週間データ（ファイル未読み込み時の初期値）
   let uploadedExcelDataText = `
-【取り込み済みアカウント統計データ（@supnohe）】
-- 概要: フォロワー1.91万人（年間で5.5千人から急速拡大）。平均再生1.64万、最高38.2万。
-- 性別・地域: 女性53%・男性44%。日本29.8%、フィリピン4.5%、ブラジル3.2%。
-- 主なヒット動画:
-  1. BTSジョングクフォロー関連: 222,9852再生 / 10.1万いいね / 302シェア
+【直近2週間（最新14日間）のアナリティクスデータ（@supnohe）】
+- 直近14日間 総再生数: 127,913回（1日平均 9,136.6回）
+- 直近14日間 総いいね数: 5,726件（1日平均 409件 / いいね率: 4.48%）
+- 直近14日間 プロフィール閲覧数: 13,499回（1日平均 964.2回 / 遷移率: 10.55%）
+- 直近14日間 総シェア数: 76件（1日平均 5.4件 / シェア率: 0.06%）
+- フォロワー推移: 18,716人 → 19,115人（直近14日間で +399人拡大 / 1日平均 +28.5人）
+- 性別割合: 女性 53.0%、男性 44.0%、その他 3.0%
+- 主要地域: 日本 29.8%、フィリピン 4.5%、ブラジル 3.2%、エジプト 3.0%、ロシア 3.0%
+- アクティブ時間帯ピーク: 23:00〜1:00（平均 4,300〜4,765人がアクティブ）
+- 主なヒット動画傾向:
+  1. BTSジョングクフォロー関連: 2,229,852回再生 / 10.1万いいね / 302シェア
   2. BE:FIRST SOTA関連ダンス: 84.1万再生 / 5.7万いいね / 543シェア
   3. 柔軟・音ハメダンス: 75.8万再生 / 9.1万いいね / 2,953シェア
   4. edhiii boi チャレンジ: 38.9万再生 / 2.5万いいね / 514シェア
@@ -573,13 +580,14 @@
     });
   }
 
+  // 📂 Excelファイルのデータを解析し、「最新の日付から直近14日分（2週間）」のみを動的抽出する関数
   async function handleExcelUpload(event) {
     const files = event.target.files;
     const status = document.getElementById('excelStatus');
     if (!files || files.length === 0) return;
 
-    status.innerText = "⏳ Excelファイルを読み込み中...";
-    let combinedText = "\n【追加Excelデータ】\n";
+    status.innerText = "⏳ Excelファイルを読み込み、直近2週間（14日間）データを自動抽出中...";
+    let combinedText = "\n【アップロードされたファイルの直近2週間（14日間）抽出データ】\n";
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -587,16 +595,25 @@
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data, { type: 'array' });
         
-        combinedText += `\n--- ${file.name} ---\n`;
+        combinedText += `\n--- ファイル: ${file.name} ---\n`;
         workbook.SheetNames.forEach(sheetName => {
           const worksheet = workbook.Sheets[sheetName];
           const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          combinedText += `[シート: ${sheetName}]\n` + JSON.stringify(json.slice(0, 10)) + "\n";
+          
+          // データを行数に応じて「末尾（最新日）の14行」切り出し
+          let recent14Rows = json;
+          if (json.length > 15) {
+            const header = json[0];
+            const dataRows = json.slice(1);
+            recent14Rows = [header, ...dataRows.slice(-14)];
+          }
+          
+          combinedText += `[シート: ${sheetName} (直近14日分データ)]\n` + JSON.stringify(recent14Rows) + "\n";
         });
       }
 
       uploadedExcelDataText = combinedText;
-      status.innerText = `✅ 追加Excelデータの読み込みが完了しました！`;
+      status.innerText = `✅ ${files.length} 個のファイルから「直近2週間データ」の自動抽出・適用が完了しました！`;
 
     } catch (err) {
       console.error(err);
@@ -621,34 +638,52 @@
     return data.candidates[0].content.parts[0].text;
   }
 
-  // 📊 変更：「現在の傾向と目標」を出力する処理
+  // 📊 直近2週間の抽出データのみを元に「現在の傾向と目標」をAIが分析
   async function analyzeAccountTrends() {
     const resultBox = document.getElementById('trendResultBox');
     const adviceText = document.getElementById('trendAdviceText');
 
     resultBox.style.display = "block";
-    adviceText.innerText = "⏳ 「現在の傾向と目標」を分析中...";
+    adviceText.innerText = "⏳ 「直近2週間の抽出データ」を基に傾向と目標を分析中...";
 
     try {
       const promptText = `
 あなたは2026年のTikTokアルゴリズム（視聴完了率・5秒離脱率・TikTok SEO重視）に精通したプロのアナリストです。
-以下のアカウントデータ（@supnohe）を基に、**全体で250文字程度の簡潔なサマリー**を作成してください。
+以下に提供された【直近2週間（14日間）のデータ】のみを厳密に分析し、指定されたフォーマットで出力してください。
 
-【データ】
+【直近2週間データ】
 ${uploadedExcelDataText}
 
-出力形式：
+必ず以下の見出し・フォーマットを維持して出力してください：
 
 【現在の傾向】
-・[1.91万人規模への成長要因、女性層53%、K-POP/J-POP等の有名アーティスト×高技術ダンスがバズの主軸であることを1〜2行で要約]
+・まとめ: 直近14日間の総再生数、平均再生数、フォロワー増加数などの数値を交えて全体傾向を要約。
+・性別割合: 女性 〇% / 男性 〇% / その他 〇% （データ記載の数値）
+・主要視聴地域: [上位国と％を記載]
+・アクティブ時間帯: [ピーク時間帯を記載]
+・主要ヒット作: [過去〜直近でバズった代表動画タイトルと実績]
 
 【バズるための必須数値と目標達成率】
-・5秒維持率（クオリファイド・ビュー）: 良好（高再生動画の初動評価が高い）
-・視聴完了率: 目標70%（長尺・中尺動画での離脱防止が次の課題）
-・保存・シェア率: 高水準（音ハメ・柔軟動画等で2,900件超のシェア実績）
+※データから算出した現在値とアルゴリズム目標値を計算し「現在値 ： 目標値 ＝ 達成率 （不足数）」の形式で一覧出力してください：
+
+1．5秒維持率（クオリファイド・ビュー）
+現在：〇% ： 目標：80.0% ＝ 達成率 〇% （不足数：〇%）
+
+2．視聴完了率（最後まで見る割合）
+現在：〇% ： 目標：70.0% ＝ 達成率 〇% （不足数：〇%）
+
+3．リピート再生率（ループ割合）
+現在：〇% ： 目標：15.0% ＝ 達成率 〇% （不足数：〇%）
+
+4．いいね率（反応率）
+現在：〇% ： 目標：5.00% ＝ 達成率 〇% （不足数：〇%）
+
+5．シェア・保存率（実用性・拡散指標）
+現在：〇% ： 目標：1.00% ＝ 達成率 〇% （不足数：〇%）
 
 【現在の視聴者傾向と今後の対策】
-・[ファン属性（女性・ダンスファン層）に合わせたTikTok SEO（話し言葉・テロップのキーワード化）とコメント誘発フックの方向性を1〜2行で要約]
+・直近のユーザー層やアクティブ時間帯に合わせた投稿タイミングとコンテンツ戦略。
+・目標未達成の項目（視聴完了率やシェア保存率など）をクリアするための具体的な打ち手（TikTok SEO、0.5秒フック、コメント誘発施策など）。
 `;
 
       const rawAdvice = await callGemini(promptText);
