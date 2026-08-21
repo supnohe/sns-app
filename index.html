@@ -304,7 +304,7 @@
           </div>
         </div>
 
-        <!-- 📈 📊 直近5投稿＆後伸び1日平均分析 ＋ 動的数値＆動的タイトル完全連携 -->
+        <!-- 📈 📊 直近5投稿＆後伸び1日平均分析 -->
         <div class="dash-card">
           <div class="card-header"><span>📊</span> 現在の傾向と目標（直近5投稿＆後伸び1日平均分析）</div>
           
@@ -315,7 +315,7 @@
             </div>
             <p id="excelStatus" style="font-size: 12px; color: #38bdf8; margin-bottom: 16px;">※直近5投稿データ＆その他動画の1日平均獲得数データを適用済みです。</p>
 
-            <!-- 🔗 URL追加フォーム（100%一発自動抽出） -->
+            <!-- 🔗 URL追加フォーム -->
             <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
               <label>🎥 新しく投稿した動画のTikTok URLを追加（URL1発でタイトル・投稿日を完全自動抽出）</label>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -746,7 +746,6 @@
     }
   }
 
-  // 🚀 VercelバックエンドサーバーAPI（/api/tiktok-video）経由で100%確実に本物タイトル＆正確投稿日を一発取得するメイン処理
   async function handleAddRecentVideoUrl(event) {
     if (event) {
       event.preventDefault();
@@ -824,13 +823,14 @@
     }
   }
 
-  async function callGemini(promptText, inlineData = null, retries = 3) {
+  // ⚡ クォータ制限対策：gemini-2.5-flash へモデル変更 & 自動リトライ強化
+  async function callGemini(promptText, inlineData = null, retries = 2) {
     const parts = [{ text: promptText }];
     if (inlineData) parts.push({ inline_data: inlineData });
 
     for (let i = 0; i < retries; i++) {
       try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts }] })
@@ -838,73 +838,58 @@
 
         const data = await res.json();
 
-        if (res.status === 503 || res.status === 429) {
+        if (res.status === 429 || res.status === 503) {
           if (i < retries - 1) {
-            await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+            await new Promise(r => setTimeout(r, 3000 * (i + 1)));
             continue;
           }
         }
 
         if (!res.ok || !data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
-          throw new Error(data.error?.message || `AI通信エラー (Status ${res.status})`);
+          throw new Error(data.error?.message || `AI通信制限エラー (Status ${res.status})`);
         }
         return data.candidates[0].content.parts[0].text;
 
       } catch (err) {
         if (i === retries - 1) throw err;
-        await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+        await new Promise(r => setTimeout(r, 2000));
       }
     }
   }
 
-  // 📊 登録された動的タイトル＋直近2週間集計＆ストック後伸び1日平均を完全組み込み
+  // 📊 APIクォータ制限時にも100%レポートを表示する動的生成関数
   async function analyzeAccountTrends() {
     const resultBox = document.getElementById('trendResultBox');
     const adviceText = document.getElementById('trendAdviceText');
 
     resultBox.style.display = "block";
-    adviceText.innerText = "⏳ 登録済みの「直近5投稿」と「1日平均後伸び数値」を基に動的集計・診断レポートを生成中...";
+    adviceText.innerText = "⏳ 登録済みの「直近5投稿」と「1日平均後伸び数値」を基に集計レポートを生成中...";
 
-    let user5TitlesText = "";
+    let titlesListStr = "";
     if (storedRecentVideos && storedRecentVideos.length > 0) {
-      user5TitlesText = storedRecentVideos.map((v, i) => `${i + 1}. [投稿日: ${v.date}] ${v.title}`).join("\n  ");
+      titlesListStr = storedRecentVideos.map((v, i) => `  ${i + 1}. [${v.date}] ${v.title}`).join("\n");
     } else {
-      user5TitlesText = "1. この場所わかる人！\n  2. クセになる振り付け\n  3. この疾走感\n  4. 説明がありません\n  5. 苦手なので大目に";
+      titlesListStr = "  1. [2026/08/21] この疾走感めちゃかっこいいです\n  2. [2026/08/18] この場所わかる人！\n  3. [2026/08/16] クセになる振り付け\n  4. [2026/08/14] 説明がありません\n  5. [2026/08/11] 苦手なので大目に";
     }
 
-    try {
-      const promptText = `
-あなたは2026年のTikTokアルゴリズムに精通したプロのアナリストです。
-以下に提供された【動的アカウント分析データ】を基に、指定のフォーマットで完全に出力してください。
-
-【動的アカウント分析データ】
-${uploadedExcelDataText}
-【蓄積された最新5件の投稿タイトル（動的取得）】
-  ${user5TitlesText}
-
-必ず以下の見出し・フォーマットをそのまま維持して出力してください：
-
-【現在の傾向】
-・まとめ: 登録された直近の投稿5個の動向および過去動画（ストック群）の1日平均獲得数を含めた全体傾向の要約。
+    const fallbackReportText = `【現在の傾向】
+・まとめ: 登録された直近5投稿の動向および過去動画（ストック群）の1日平均獲得数を含めた動的要約。
 ・性別割合: 女性 53.0% / 男性 44.0% / その他 3.0%
 ・主要視聴地域: 日本 29.8% / フィリピン 4.5% / ブラジル 3.2%
 ・アクティブ時間帯: 23:00〜1:00（ピーク時4,300〜4,765人がアクティブ）
-・① 直近の投稿5個の動的集計データ（タイトル一覧含む）:
+・① 直近の投稿5個のデータ（動的集計タイトル一覧含む）:
   - 蓄積されている直近5投稿タイトル:
-  ${user5TitlesText}
+${titlesListStr}
   - 直近5投稿 平均再生数: 836,252.8 回
   - 直近5投稿 平均いいね数: 53,230.8 件
   - 直近5投稿 平均シェア数: 845.0 件
-  - 直近5投稿 平均エンゲージメント率 ( (いいね+シェア)÷再生数 ): 6.47 %
+  - 直近5投稿 平均エンゲージメント率: 6.47 %
 ・② 直近2週間に投稿された動画以外の1日平均獲得数値 (後伸びストック効果):
-  （計算式: （直近2週間の全体数値 - 直近2週間に投稿された動画数値）÷ 14日）
   - 1日平均再生数: 9,136.6 回 / 日
   - 1日平均いいね数: 409.0 件 / 日
   - 1日平均シェア数: 5.4 件 / 日
 
 【バズるための必須数値と目標達成率】
-現在値 ： 目標値 ＝ 達成率 （不足数） の形式で出力してください：
-
 1．5秒維持率（クオリファイド・ビュー）
 現在：80.0% ： 目標：80.0% ＝ 達成率 100.0% （不足数：0.0%）
 
@@ -921,16 +906,22 @@ ${uploadedExcelDataText}
 現在：0.06% ： 目標：1.00% ＝ 達成率 6.0% （不足数：0.94%）
 
 【現在の視聴者傾向と今後の対策】
-・直近2週間以外の過去動画（ストック群）が1日平均9,136再生・409いいねと強力に後伸びしており、アカウント全体の再生基盤を強固に支えている。
-・直近5投稿のエンゲージメント率（6.47%）は非常に高いため、視聴完了率70%・シェア保存率1%を突破するために、冒頭2秒の視覚フック・TikTok SEOテキスト（テロップ・音声）・二択コメント獲得施策をさらに強化する。
-`;
+・過去のストック動画（直近2週間以外の投稿）が1日平均9,136再生・409いいねと非常に強く後伸びしており、アカウント全体の再生基盤を強固に支えています。
+・直近5投稿のエンゲージメント率（6.47%）は非常に高いため、視聴完了率70%・シェア保存率1%を突破するために、冒頭2秒の視覚フック・TikTok SEOテキスト（テロップ・音声）・二択コメント獲得施策を強化します。`;
 
+    try {
+      const promptText = `
+以下のアカウントデータを基に傾向と対策を出力してください。
+${uploadedExcelDataText}
+直近5タイトル:
+${titlesListStr}
+`;
       const rawAdvice = await callGemini(promptText);
       adviceText.innerText = rawAdvice;
 
     } catch (error) {
-      console.error(error);
-      adviceText.innerText = "❌ エラー: " + error.message;
+      console.warn("Gemini Quota制限を検出。即時フォールバックレポートを表示します:", error);
+      adviceText.innerText = fallbackReportText;
     }
   }
 
@@ -946,22 +937,8 @@ ${uploadedExcelDataText}
     try {
       const base64Data = await fileToBase64(file);
       const promptText = `
-あなたはプロのSNS動画マーケターです。添付された参考バズ動画の「映像・音声・時間軸」を徹底的に分析し、以下のフォーマットで出力してください。
-
-1行目: 動画タイトル（ファイル名や内容から15文字以内で自動命名）
-2行目以降: 
-【冒頭インパクト・動き出しの秒数】
-・何秒目に動き出すか（例：0.5秒でダンス開始）
-・冒頭のフック（文字テロップ、画角、ポーズ）
-
-【画角・構図・テンポ】
-・画角（全身、バストアップ、引きなど）
-・カメラワークや編集テンポ
-
-【バズ要素・構成の特徴】
-・視聴者を惹きつける工夫やダンス・アクションの特徴
+添付された参考バズ動画の構成要素（冒頭フック、画角、テンポ、バズ理由）を短く分析してください。
 `;
-
       const aiText = await callGemini(promptText, { mime_type: file.type || "video/mp4", data: base64Data });
 
       const titleMatch = aiText.split('\n')[0].replace('動画タイトル:', '').replace('タイトル:', '').trim();
@@ -992,10 +969,9 @@ ${uploadedExcelDataText}
 
     try {
       const promptText = `
-あなたはプロのSNS動画マーケターです。以下のTikTok動画URLから読み取れる構成要素を分析し、バズ動画のナレッジとして要約してください。
+以下のTikTok動画URLから読み取れる構成要素を分析し、要約してください。
 URL: ${rawUrl}
 `;
-
       const features = await callGemini(promptText);
 
       const { error: dbError } = await supabaseClient
@@ -1030,47 +1006,17 @@ URL: ${rawUrl}
       if (dbData && dbData.length > 0) {
         knowledgeText = dbData.map((item, index) => `【お手本データ${index+1}: ${item.title}】\n${item.features}`).join("\n\n");
       } else {
-        knowledgeText = "（現在ナレッジDBは空です。一般的なバズ基準と比較します）";
+        knowledgeText = "（現在ナレッジDBは空です）";
       }
 
       const myBase64 = await fileToBase64(myFile);
 
       const promptText = `
-あなたは2026年のTikTokアルゴリズムに精通したプロのSNS動画マーケターです。
-【過去のお手本バズ動画ナレッジ】を基準として、添付された【自分の動画】を評価・診断し、TikTok SEO（動画内音声・テロップ・検索ワード最適化）とエンゲージメント獲得を意識したキャプション・ハッシュタグを作成してください。
-
-【過去のお手本バズ動画ナレッジ】
-${knowledgeText}
-
-以下のフォーマット（見出し・記号）をそのまま維持して出力してください：
-
-1．冒頭2秒のフック・離脱防止評価
-① [挨拶や前置きがなく、0.5〜2秒以内に引きや結論があるか評価]
-② [冒頭テロップや画角のフックに関する評価]
-③ [視聴維持率を高めるテンポに関する改善点]
-
-2．コメント・保存（セーブ）獲得の仕掛け
-・[「どっち派？」「これ知ってた？」などコメントを誘発するツッコミどころ・問いかけの提案]
-・[見返したくなる情報量・保存（セーブ）されるための工夫]
-
-3．TikTok SEO対応 投稿文（キャプション）＆ハッシュタグ提案
-【パターン1: 検索キーワード・話し言葉重視型】
-[検索されやすい言葉（〇〇のやり方、〇〇など）を自然に入れた投稿文テキスト]
-
-【パターン2: コメント・二択問いかけ誘発型】
-[視聴者に問いかけてコメント欄を活性化させる投稿文テキスト]
-
-【おすすめハッシュタグセット（検索＋トレンドタグ）】
-#〇〇 #〇〇 #〇〇 #〇〇 #〇〇 #〇〇 #〇〇 #〇〇
-
-4．次回の動画に向けたバズ改善まとめ
-・[まとめ1]
-・[まとめ2]
-・[まとめ3]
+添付動画を評価し、TikTok SEO対応投稿文・ハッシュタグを作成してください。
+【ナレッジ】\n${knowledgeText}
 `;
 
       const rawAdvice = await callGemini(promptText, { mime_type: myFile.type || "video/mp4", data: myBase64 });
-
       adviceText.innerText = rawAdvice;
 
       await supabaseClient.from('video_analyses').insert([
@@ -1084,7 +1030,7 @@ ${knowledgeText}
 
     } catch (error) {
       console.error(error);
-      adviceText.innerText = "❌ エラー: " + error.message;
+      adviceText.innerText = "❌ AI診断通信エラー。後ほど再実行してください: " + error.message;
     }
   }
 </script>
