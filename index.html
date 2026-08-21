@@ -325,7 +325,6 @@
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null;
 
-  // 📊 標準の直近2週間データ（ファイル未読み込み時の初期値）
   let uploadedExcelDataText = `
 【直近2週間（最新14日間）のアナリティクスデータ（@supnohe）】
 - 直近14日間 総再生数: 127,913回（1日平均 9,136.6回）
@@ -580,7 +579,6 @@
     });
   }
 
-  // 📂 Excelファイルのデータを解析し、「最新の日付から直近14日分（2週間）」のみを動的抽出する関数
   async function handleExcelUpload(event) {
     const files = event.target.files;
     const status = document.getElementById('excelStatus');
@@ -600,7 +598,6 @@
           const worksheet = workbook.Sheets[sheetName];
           const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
           
-          // データを行数に応じて「末尾（最新日）の14行」切り出し
           let recent14Rows = json;
           if (json.length > 15) {
             const header = json[0];
@@ -621,24 +618,40 @@
     }
   }
 
-  async function callGemini(promptText, inlineData = null) {
+  // 🔄 サーバー混雑時の自動リトライ付きGemini呼出処理
+  async function callGemini(promptText, inlineData = null, retries = 3) {
     const parts = [{ text: promptText }];
     if (inlineData) parts.push({ inline_data: inlineData });
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts }] })
-    });
+    for (let i = 0; i < retries; i++) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts }] })
+        });
 
-    const data = await res.json();
-    if (!res.ok || !data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
-      throw new Error(data.error?.message || `AI通信エラー (Status ${res.status})`);
+        const data = await res.json();
+
+        if (res.status === 503 || res.status === 429) {
+          if (i < retries - 1) {
+            await new Promise(r => setTimeout(r, 2000 * (i + 1))); // 2秒、4秒待機して自動リトライ
+            continue;
+          }
+        }
+
+        if (!res.ok || !data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+          throw new Error(data.error?.message || `AI通信エラー (Status ${res.status})`);
+        }
+        return data.candidates[0].content.parts[0].text;
+
+      } catch (err) {
+        if (i === retries - 1) throw err;
+        await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+      }
     }
-    return data.candidates[0].content.parts[0].text;
   }
 
-  // 📊 直近2週間の抽出データのみを元に「現在の傾向と目標」をAIが分析
   async function analyzeAccountTrends() {
     const resultBox = document.getElementById('trendResultBox');
     const adviceText = document.getElementById('trendAdviceText');
