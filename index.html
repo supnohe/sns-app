@@ -256,22 +256,22 @@
           </div>
         </div>
 
-        <!-- 📈 📂 Excelデータ格納＆アカウント傾向AI分析（要約版） -->
+        <!-- 📈 📂 Excelデータ格納＆現在の傾向と目標分析 -->
         <div class="dash-card">
-          <div class="card-header"><span>📊</span> 過去〜現在の伸び・バズ傾向要約サマリー</div>
+          <div class="card-header"><span>📊</span> 現在の傾向と目標</div>
           
           <div class="sub-section" style="margin-bottom: 16px;">
             <div class="form-group" style="margin-bottom: 8px;">
-              <label>📁 分析用Excelデータ (.xlsx) の上書き追加（任意）</label>
+              <label>📁 分析用Excelデータ (.xlsx) の追加（任意）</label>
               <input type="file" id="excelFilesInput" class="form-input" accept=".xlsx, .xls, .csv" multiple onchange="handleExcelUpload(event)">
             </div>
-            <p id="excelStatus" style="font-size: 12px; color: #38bdf8;">※標準データを適用済みです。</p>
+            <p id="excelStatus" style="font-size: 12px; color: #38bdf8;">※標準アナリティクスデータを適用済みです。</p>
           </div>
 
-          <button class="btn btn-primary" onclick="analyzeAccountTrends()">要約傾向分析レポートを生成</button>
+          <button class="btn btn-primary" onclick="analyzeAccountTrends()">現在の傾向と目標レポートを生成</button>
 
           <div id="trendResultBox" class="result-box">
-            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">📊 アカウント全体サマリー</div>
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">📊 現在の傾向と目標レポート</div>
             <div id="trendAdviceText" class="advice-text">分析中...</div>
           </div>
         </div>
@@ -297,16 +297,16 @@
           <p id="refStatus" style="font-size: 12px; color: var(--text-muted); margin-top: 8px;"></p>
         </div>
 
-        <!-- 2. 自分の動画診断 & 投稿文・ハッシュタグ生成 -->
+        <!-- 2. 自分の動画診断 & TikTok SEO対応投稿文・ハッシュタグ生成 -->
         <div class="dash-card">
-          <div class="card-header"><span>🎥</span> 2. 自社動画のAI改善診断 & 投稿文提案</div>
+          <div class="card-header"><span>🎥</span> 2. 自社動画のAI改善診断 & TikTok SEO投稿文提案</div>
 
           <div class="form-group">
             <label>診断・投稿文作成用の動画を選択</label>
             <input type="file" id="myVideo" class="form-input" accept="video/*">
           </div>
 
-          <button class="btn btn-primary" onclick="analyzeMyVideo()">AI動画診断 & 投稿文・ハッシュタグ提案を実行</button>
+          <button class="btn btn-primary" onclick="analyzeMyVideo()">AI動画診断 & TikTok SEO投稿文・ハッシュタグ提案を実行</button>
 
           <div id="resultBox" class="result-box">
             <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">💡 AI診断分析 & 投稿作成レポート</div>
@@ -327,9 +327,13 @@
 
   let uploadedExcelDataText = `
 【取り込み済みアカウント統計データ（@supnohe）】
-- 概要: フォロワー1.9万人（年間で5.5千人から急速拡大）。平均再生1.6万、最高38.2万。
-- 性別・地域: 女性53%・男性44%。日本30%、フィリピン4.5%、ブラジル3.2%。
-- バズ傾向: BTSジョングク（222万再生）、BE:FIRST SOTA（84万再生）、柔軟・音ハメ（75万再生）、edhiii boi（38万再生）。
+- 概要: フォロワー1.91万人（年間で5.5千人から急速拡大）。平均再生1.64万、最高38.2万。
+- 性別・地域: 女性53%・男性44%。日本29.8%、フィリピン4.5%、ブラジル3.2%。
+- 主なヒット動画:
+  1. BTSジョングクフォロー関連: 222,9852再生 / 10.1万いいね / 302シェア
+  2. BE:FIRST SOTA関連ダンス: 84.1万再生 / 5.7万いいね / 543シェア
+  3. 柔軟・音ハメダンス: 75.8万再生 / 9.1万いいね / 2,953シェア
+  4. edhiii boi チャレンジ: 38.9万再生 / 2.5万いいね / 514シェア
 `;
 
   window.onload = async function() {
@@ -617,32 +621,34 @@
     return data.candidates[0].content.parts[0].text;
   }
 
-  // 📊 ① アカウント傾向を簡潔に要約して分析出力
+  // 📊 変更：「現在の傾向と目標」を出力する処理
   async function analyzeAccountTrends() {
     const resultBox = document.getElementById('trendResultBox');
     const adviceText = document.getElementById('trendAdviceText');
 
     resultBox.style.display = "block";
-    adviceText.innerText = "⏳ アカウント傾向を要約分析中...";
+    adviceText.innerText = "⏳ 「現在の傾向と目標」を分析中...";
 
     try {
       const promptText = `
-あなたはプロのSNSマーケターです。
-以下のアカウントデータ（@supnohe）を基に、要点を絞って**全体で250文字程度の簡潔な要約サマリー**を作成してください。冗長な前置きや長文説明は避け、要点だけを箇条書きで短くまとめてください。
+あなたは2026年のTikTokアルゴリズム（視聴完了率・5秒離脱率・TikTok SEO重視）に精通したプロのアナリストです。
+以下のアカウントデータ（@supnohe）を基に、**全体で250文字程度の簡潔なサマリー**を作成してください。
 
 【データ】
 ${uploadedExcelDataText}
 
 出力形式：
 
-【現状・伸びの傾向】
-・[1〜2行で要約]
+【現在の傾向】
+・[1.91万人規模への成長要因、女性層53%、K-POP/J-POP等の有名アーティスト×高技術ダンスがバズの主軸であることを1〜2行で要約]
 
-【バズコンテンツの特徴】
-・[1〜2行で要約]
+【バズるための必須数値と目標達成率】
+・5秒維持率（クオリファイド・ビュー）: 良好（高再生動画の初動評価が高い）
+・視聴完了率: 目標70%（長尺・中尺動画での離脱防止が次の課題）
+・保存・シェア率: 高水準（音ハメ・柔軟動画等で2,900件超のシェア実績）
 
-【今後試すべき具体的施策】
-・[1〜2行で要約]
+【現在の視聴者傾向と今後の対策】
+・[ファン属性（女性・ダンスファン層）に合わせたTikTok SEO（話し言葉・テロップのキーワード化）とコメント誘発フックの方向性を1〜2行で要約]
 `;
 
       const rawAdvice = await callGemini(promptText);
@@ -741,7 +747,7 @@ URL: ${rawUrl}
     if (!myFile) return alert("診断用動画を選択してください");
 
     resultBox.style.display = "block";
-    adviceText.innerText = "⏳ ナレッジ比較・AI診断・投稿文生成中...";
+    adviceText.innerText = "⏳ 2026年TikTokアルゴリズム基準でAI診断・投稿文生成中...";
 
     try {
       const { data: dbData } = await supabaseClient.from('reference_videos').select('title, features');
@@ -756,48 +762,37 @@ URL: ${rawUrl}
       const myBase64 = await fileToBase64(myFile);
 
       const promptText = `
-あなたはプロのSNS動画マーケターです。
-以下に登録されている【過去のお手本バズ動画ナレッジ】を基準として、添付された【自分の動画】を評価・診断し、さらにTikTokにそのまま投稿できるおすすめの「キャプション（投稿文）」と「ハッシュタグ」を作成してください。
+あなたは2026年のTikTokアルゴリズムに精通したプロのSNS動画マーケターです。
+【過去のお手本バズ動画ナレッジ】を基準として、添付された【自分の動画】を評価・診断し、TikTok SEO（動画内音声・テロップ・検索ワード最適化）とエンゲージメント獲得を意識したキャプション・ハッシュタグを作成してください。
 
 【過去のお手本バズ動画ナレッジ】
 ${knowledgeText}
 
 以下のフォーマット（見出し・記号）をそのまま維持して出力してください：
 
-1．冒頭の改善点
-① [箇条書き1]
-② [箇条書き2]
-③ [箇条書き3]
+1．冒頭2秒のフック・離脱防止評価
+① [挨拶や前置きがなく、0.5〜2秒以内に引きや結論があるか評価]
+② [冒頭テロップや画角のフックに関する評価]
+③ [視聴維持率を高めるテンポに関する改善点]
 
-改善策詳細
-・[詳細説明1]
-・[詳細説明2]
+2．コメント・保存（セーブ）獲得の仕掛け
+・[「どっち派？」「これ知ってた？」などコメントを誘発するツッコミどころ・問いかけの提案]
+・[見返したくなる情報量・保存（セーブ）されるための工夫]
 
-2．画角・秒数・テンポ
-① [箇条書き1]
-② [箇条書き2]
-③ [箇条書き3]
+3．TikTok SEO対応 投稿文（キャプション）＆ハッシュタグ提案
+【パターン1: 検索キーワード・話し言葉重視型】
+[検索されやすい言葉（〇〇のやり方、〇〇など）を自然に入れた投稿文テキスト]
 
-改善策詳細
-・[詳細説明1]
-・[詳細説明2]
+【パターン2: コメント・二択問いかけ誘発型】
+[視聴者に問いかけてコメント欄を活性化させる投稿文テキスト]
 
-3．おすすめ投稿文・キャプション案＆ハッシュタグ提案（そのままコピーして使える形式）
-【投稿文パターン1（共感・コメント誘発型）】
-[投稿文テキスト]
-
-【投稿文パターン2（トレンド・短文フック型）】
-[投稿文テキスト]
-
-【おすすめハッシュタグセット】
+【おすすめハッシュタグセット（検索＋トレンドタグ）】
 #〇〇 #〇〇 #〇〇 #〇〇 #〇〇 #〇〇 #〇〇 #〇〇
 
-4．次回の動画に向けての改善点まとめ
+4．次回の動画に向けたバズ改善まとめ
 ・[まとめ1]
 ・[まとめ2]
 ・[まとめ3]
-・[まとめ4]
-・[まとめ5]
 `;
 
       const rawAdvice = await callGemini(promptText, { mime_type: myFile.type || "video/mp4", data: myBase64 });
@@ -806,7 +801,7 @@ ${knowledgeText}
 
       await supabaseClient.from('video_analyses').insert([
         {
-          title: `動画診断・投稿文提案 (${new Date().toLocaleString()})`,
+          title: `TikTok SEO動画診断 (${new Date().toLocaleString()})`,
           target_video_url: myFile.name,
           ai_advice: rawAdvice,
           user_id: currentUser.id
