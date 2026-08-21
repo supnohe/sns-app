@@ -770,6 +770,39 @@
     }
   }
 
+  // 動画URLからのメタデータ・プロキシ数値自動解読処理
+  async function fetchVideoDataWithProxy(cleanUrl) {
+    let result = { title: "", views: 0, likes: 0, comments: 0, shares: 0 };
+    try {
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(cleanUrl)}`;
+      const res = await fetch(proxyUrl);
+      const data = await res.json();
+      if (data && data.contents) {
+        const html = data.contents;
+        
+        // タイトル抽出
+        const ogMatch = html.match(/<meta\s+property=["']og:description["']\s+content=["'](.*?)["']/i);
+        if (ogMatch && ogMatch[1]) {
+          result.title = ogMatch[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').trim();
+        }
+
+        // 数値抽出（パターンマッチ）
+        const playMatch = html.match(/"playCount":\s*(\d+)/i) || html.match(/playCount["']:\s*(\d+)/i);
+        const likeMatch = html.match(/"diggCount":\s*(\d+)/i) || html.match(/diggCount["']:\s*(\d+)/i);
+        const commentMatch = html.match(/"commentCount":\s*(\d+)/i) || html.match(/commentCount["']:\s*(\d+)/i);
+        const shareMatch = html.match(/"shareCount":\s*(\d+)/i) || html.match(/shareCount["']:\s*(\d+)/i);
+
+        if (playMatch) result.views = parseInt(playMatch[1], 10);
+        if (likeMatch) result.likes = parseInt(likeMatch[1], 10);
+        if (commentMatch) result.comments = parseInt(commentMatch[1], 10);
+        if (shareMatch) result.shares = parseInt(shareMatch[1], 10);
+      }
+    } catch(e) {
+      console.warn("Proxy Fetch Error:", e);
+    }
+    return result;
+  }
+
   // 🚀 URL追加処理
   async function handleAddRecentVideoUrl(event) {
     if (event) {
@@ -785,34 +818,38 @@
 
     const cleanUrl = rawUrl.split('?')[0];
     status.style.color = "#38bdf8";
-    status.innerText = "⏳ Vercelサーバー経由で投稿文と日付を抽出中...";
+    status.innerText = "⏳ 投稿文・投稿日・再生数を自動取得中...";
 
     try {
       const apiRes = await fetch(`/api/tiktok-video?url=${encodeURIComponent(cleanUrl)}`);
       const resData = await apiRes.json();
+      
+      const proxyData = await fetchVideoDataWithProxy(cleanUrl);
 
-      if (resData.success) {
-        const newItem = {
-          title: resData.title,
-          url: cleanUrl,
-          date: resData.date,
-          isoDate: resData.isoDate,
-          timestamp: resData.timestamp,
-          views: resData.metrics?.views || 0,
-          likes: resData.metrics?.likes || 0,
-          comments: resData.metrics?.comments || 0,
-          shares: resData.metrics?.shares || 0
-        };
+      const finalTitle = resData.title || proxyData.title || `TikTok動画 (${resData.date})`;
+      const finalViews = resData.metrics?.views || proxyData.views || 0;
+      const finalLikes = resData.metrics?.likes || proxyData.likes || 0;
+      const finalComments = resData.metrics?.comments || proxyData.comments || 0;
+      const finalShares = resData.metrics?.shares || proxyData.shares || 0;
 
-        storedRecentVideos.push(newItem);
-        sortAndSaveRecentVideos();
+      const newItem = {
+        title: finalTitle,
+        url: cleanUrl,
+        date: resData.date,
+        isoDate: resData.isoDate,
+        timestamp: resData.timestamp,
+        views: finalViews,
+        likes: finalLikes,
+        comments: finalComments,
+        shares: finalShares
+      };
 
-        status.style.color = "#4ade80";
-        status.innerText = `✅ 「${resData.title}」を追加しました！`;
-        urlInput.value = "";
-      } else {
-        throw new Error(resData.error || "取得エラー");
-      }
+      storedRecentVideos.push(newItem);
+      sortAndSaveRecentVideos();
+
+      status.style.color = "#4ade80";
+      status.innerText = `✅ 「${finalTitle}」を追加しました！`;
+      urlInput.value = "";
 
     } catch (err) {
       console.error(err);
@@ -834,7 +871,7 @@
     }
 
     status.style.color = "#38bdf8";
-    status.innerText = `⏳ 登録済み動画 ${storedRecentVideos.length}件の最新数値を同期中...`;
+    status.innerText = `⏳ 登録済み動画 ${storedRecentVideos.length}件の最新数値を更新中...`;
 
     try {
       for (let i = 0; i < storedRecentVideos.length; i++) {
@@ -843,19 +880,22 @@
 
         const apiRes = await fetch(`/api/tiktok-video?url=${encodeURIComponent(cleanUrl)}`);
         const resData = await apiRes.json();
+        const proxyData = await fetchVideoDataWithProxy(cleanUrl);
 
-        if (resData.success && resData.metrics) {
-          if (resData.metrics.views > 0) storedRecentVideos[i].views = resData.metrics.views;
-          if (resData.metrics.likes > 0) storedRecentVideos[i].likes = resData.metrics.likes;
-          if (resData.metrics.comments > 0) storedRecentVideos[i].comments = resData.metrics.comments;
-          if (resData.metrics.shares > 0) storedRecentVideos[i].shares = resData.metrics.shares;
-          if (resData.title && !resData.title.includes("TikTok動画")) storedRecentVideos[i].title = resData.title;
-        }
+        const v = resData.metrics?.views || proxyData.views || 0;
+        const l = resData.metrics?.likes || proxyData.likes || 0;
+        const c = resData.metrics?.comments || proxyData.comments || 0;
+        const s = resData.metrics?.shares || proxyData.shares || 0;
+
+        if (v > 0) storedRecentVideos[i].views = v;
+        if (l > 0) storedRecentVideos[i].likes = l;
+        if (c > 0) storedRecentVideos[i].comments = c;
+        if (s > 0) storedRecentVideos[i].shares = s;
       }
 
       sortAndSaveRecentVideos();
       status.style.color = "#4ade80";
-      status.innerText = `✅ 数値の自動更新処理が完了しました！`;
+      status.innerText = `✅ 数値の最新同期処理が完了しました！`;
 
     } catch (err) {
       console.error(err);
