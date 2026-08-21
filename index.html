@@ -174,17 +174,16 @@
     .edit-title-btn:hover { background: rgba(56, 189, 248, 0.1); }
 
     .date-input-inline {
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: var(--text-muted);
-      font-size: 11px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: #38bdf8;
+      font-size: 12px;
       font-weight: 600;
       border-radius: 6px;
-      padding: 2px 6px;
+      padding: 4px 8px;
       cursor: pointer;
       outline: none;
     }
-    .date-input-inline:focus { border-color: var(--accent); color: #fff; }
 
     @media (max-width: 768px) {
       .top-navbar { padding: 12px 20px; }
@@ -305,7 +304,7 @@
           </div>
         </div>
 
-        <!-- 📈 📊 直近5投稿＆後伸び1日平均分析 ＋ 日付クリック直接編集＆自動降順ソート -->
+        <!-- 📈 📊 直近5投稿＆後伸び1日平均分析 ＋ URL＆投稿日入力フォーム -->
         <div class="dash-card">
           <div class="card-header"><span>📊</span> 現在の傾向と目標（直近5投稿＆後伸び1日平均分析）</div>
           
@@ -316,11 +315,12 @@
             </div>
             <p id="excelStatus" style="font-size: 12px; color: #38bdf8; margin-bottom: 16px;">※直近5投稿データ＆その他動画の1日平均獲得数データを適用済みです。</p>
 
-            <!-- 🔗 URL追加入力欄 -->
+            <!-- 🔗 URL＋投稿日付入力フォーム -->
             <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
-              <label>🎥 新しく投稿した動画のTikTok URLを追加（日付順に自動ソート）</label>
-              <div style="display: flex; gap: 8px;">
-                <input type="text" id="recentVideoUrlInput" class="form-input" placeholder="https://www.tiktok.com/@supnohe/video/...">
+              <label>🎥 新しく投稿した動画のTikTok URLと投稿日を追加（日付順に自動整列）</label>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="text" id="recentVideoUrlInput" class="form-input" style="flex: 1; min-width: 220px;" placeholder="https://www.tiktok.com/@supnohe/video/...">
+                <input type="date" id="recentPostDateInput" class="date-input-inline" style="padding: 10px 12px; font-size: 13px;">
                 <button class="btn btn-secondary" style="width: auto; flex-shrink: 0;" onclick="handleAddRecentVideoUrl()">追加</button>
               </div>
               <p id="recentUrlStatus" style="font-size: 12px; color: #38bdf8; margin-top: 6px;"></p>
@@ -424,6 +424,11 @@
     } else {
       showAuthScreen();
     }
+
+    // 今日の日付を初期値にセット
+    const today = new Date().toISOString().split('T')[0];
+    const dateInput = document.getElementById('recentPostDateInput');
+    if (dateInput) dateInput.value = today;
   };
 
   function showAuthScreen() {
@@ -656,7 +661,7 @@
     });
   }
 
-  // 📝 日付（isoDate/date）をパースして降順ソート
+  // 📝 日付（isoDate/date）をタイムスタンプへ厳密変換して降順ソート
   function parseDateToTimestamp(item) {
     if (item.isoDate) return new Date(item.isoDate).getTime();
     if (item.date) {
@@ -670,7 +675,7 @@
     storedRecentVideos.sort((a, b) => {
       const timeA = parseDateToTimestamp(a);
       const timeB = parseDateToTimestamp(b);
-      return timeB - timeA;
+      return timeB - timeA; // 新しい日付が上（降順）
     });
 
     if (storedRecentVideos.length > 5) {
@@ -746,24 +751,26 @@
     }
   }
 
-  // 🔗 プロキシ経由でTikTok動画ページから本物のキャプションと投稿日を正確に取得
+  // 🔗 プロキシ経由でキャプション取得 ＋ 選択された投稿日で確実に登録・ソート
   async function handleAddRecentVideoUrl() {
     const urlInput = document.getElementById('recentVideoUrlInput');
+    const dateInput = document.getElementById('recentPostDateInput');
     const status = document.getElementById('recentUrlStatus');
+    
     const rawUrl = urlInput.value.trim();
+    const selectedDateIso = dateInput.value;
 
     if (!rawUrl) return alert("TikTokの動画URLを入力してください");
+    if (!selectedDateIso) return alert("投稿日（カレンダー）を選択してください");
 
     status.style.color = "#38bdf8";
-    status.innerText = "⏳ TikTok動画からキャプションと投稿日を取得中...";
+    status.innerText = "⏳ TikTok動画からキャプションを取得中...";
 
     try {
       let extractedTitle = "";
-      let dateFormatted = "";
-      let isoDate = "";
       const cleanUrl = rawUrl.split('?')[0];
 
-      // 1. プロキシ経由でHTMLを取得して og:description（投稿本文）を直接抽出
+      // 1. プロキシ経由で og:description（キャプション）を取得
       try {
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(cleanUrl)}`;
         const res = await fetch(proxyUrl);
@@ -779,59 +786,29 @@
           }
         }
       } catch (e) {
-        console.warn("HTML取得失敗、AI生成切替:", e);
-      }
-
-      // 2. 日付の補完
-      if (!extractedTitle) {
-        const promptText = `
-以下のTikTok動画URLから動画の「正確なタイトル（キャプション）」と「投稿年月日（例: 2026/08/15）」を出力してください。
-URL: ${cleanUrl}
-
-出力形式（JSONのみ）：
-{"title": "この疾走感めちゃかっこいいです", "date": "2026/08/15"}
-`;
-        try {
-          const aiResText = await callGemini(promptText);
-          const jsonMatch = aiResText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.title) extractedTitle = parsed.title;
-            if (parsed.date) dateFormatted = parsed.date;
-          }
-        } catch (e) {
-          console.warn("AI補正失敗:", e);
-        }
+        console.warn("HTML取得失敗、手動入力へ切替:", e);
       }
 
       if (!extractedTitle || extractedTitle.includes("TikTok動画")) {
         extractedTitle = prompt("キャプションを入力してください:") || `動画`;
       }
 
-      if (!dateFormatted) {
-        const inputDate = prompt("投稿日を入力または確認してください (YYYY/MM/DD):", "2026/08/15");
-        dateFormatted = inputDate || "2026/08/15";
-      }
-
-      const parts = dateFormatted.split('/');
-      if (parts.length === 3) {
-        isoDate = `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
-      } else {
-        isoDate = new Date().toISOString().split('T')[0];
-      }
+      // 日付のフォーマット作成
+      const parts = selectedDateIso.split('-');
+      const dateFormatted = `${parts[0]}/${parts[1]}/${parts[2]}`;
 
       const newItem = {
         title: extractedTitle,
         url: cleanUrl,
         date: dateFormatted,
-        isoDate: isoDate
+        isoDate: selectedDateIso
       };
 
       storedRecentVideos.push(newItem);
       sortAndSaveRecentVideos();
 
       status.style.color = "#4ade80";
-      status.innerText = `✅ 「${extractedTitle}」を登録し、日付順に自動ソートしました！`;
+      status.innerText = `✅ 「${extractedTitle}」を登録し、新しい日付順（${dateFormatted}）で自動整理しました！`;
       urlInput.value = "";
 
     } catch (err) {
