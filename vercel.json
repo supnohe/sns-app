@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/tiktok1e7eLSU4m3LixA6yWeB2ekzYdFIlZCje.txt",
+      "destination": "/api/tiktok1e7eLSU4m3LixA6yWeB2ekzYdFIlZCje.js"
+    },
+    {
+      "source": "/tiktok1e7eLSU4m3LixA6yWeB2ekzYdFIlZCje",
+      "destination": "/api/tiktok1e7eLSU4m3LixA6yWeB2ekzYdFIlZCje.js"
+    }
+  ]
+}
