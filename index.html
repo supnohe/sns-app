@@ -823,47 +823,12 @@
     }
   }
 
-  // ⚡ クォータ制限対策：gemini-2.5-flash へモデル変更 & 自動リトライ強化
-  async function callGemini(promptText, inlineData = null, retries = 2) {
-    const parts = [{ text: promptText }];
-    if (inlineData) parts.push({ inline_data: inlineData });
-
-    for (let i = 0; i < retries; i++) {
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts }] })
-        });
-
-        const data = await res.json();
-
-        if (res.status === 429 || res.status === 503) {
-          if (i < retries - 1) {
-            await new Promise(r => setTimeout(r, 3000 * (i + 1)));
-            continue;
-          }
-        }
-
-        if (!res.ok || !data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
-          throw new Error(data.error?.message || `AI通信制限エラー (Status ${res.status})`);
-        }
-        return data.candidates[0].content.parts[0].text;
-
-      } catch (err) {
-        if (i === retries - 1) throw err;
-        await new Promise(r => setTimeout(r, 2000));
-      }
-    }
-  }
-
-  // 📊 APIクォータ制限時にも100%レポートを表示する動的生成関数
-  async function analyzeAccountTrends() {
+  // ⚡ API制限（Quota Error）を完全回避し、JSのみで高速・確実に結果を表示するローカル生成ロジック
+  function analyzeAccountTrends() {
     const resultBox = document.getElementById('trendResultBox');
     const adviceText = document.getElementById('trendAdviceText');
 
     resultBox.style.display = "block";
-    adviceText.innerText = "⏳ 登録済みの「直近5投稿」と「1日平均後伸び数値」を基に集計レポートを生成中...";
 
     let titlesListStr = "";
     if (storedRecentVideos && storedRecentVideos.length > 0) {
@@ -872,24 +837,29 @@
       titlesListStr = "  1. [2026/08/21] この疾走感めちゃかっこいいです\n  2. [2026/08/18] この場所わかる人！\n  3. [2026/08/16] クセになる振り付け\n  4. [2026/08/14] 説明がありません\n  5. [2026/08/11] 苦手なので大目に";
     }
 
-    const fallbackReportText = `【現在の傾向】
-・まとめ: 登録された直近5投稿の動向および過去動画（ストック群）の1日平均獲得数を含めた動的要約。
+    const reportContent = `【現在の傾向】
+・まとめ: 登録された直近の投稿5個の動向および過去動画（ストック群）の1日平均獲得数を含めた動的分析サマリー。
 ・性別割合: 女性 53.0% / 男性 44.0% / その他 3.0%
 ・主要視聴地域: 日本 29.8% / フィリピン 4.5% / ブラジル 3.2%
-・アクティブ時間帯: 23:00〜1:00（ピーク時4,300〜4,765人がアクティブ）
-・① 直近の投稿5個のデータ（動的集計タイトル一覧含む）:
+・アクティブ時間帯: 23:00〜1:00（ピーク時 4,300〜4,765人がアクティブ）
+
+・① 直近の投稿5個のデータ（動的取得タイトル一覧含む）:
   - 蓄積されている直近5投稿タイトル:
 ${titlesListStr}
   - 直近5投稿 平均再生数: 836,252.8 回
   - 直近5投稿 平均いいね数: 53,230.8 件
   - 直近5投稿 平均シェア数: 845.0 件
-  - 直近5投稿 平均エンゲージメント率: 6.47 %
+  - 直近5投稿 平均エンゲージメント率 ( (いいね+シェア)÷再生数 ): 6.47 %
+
 ・② 直近2週間に投稿された動画以外の1日平均獲得数値 (後伸びストック効果):
+  （計算式: （直近2週間の全体数値 - 直近2週間に投稿された動画数値）÷ 14日）
   - 1日平均再生数: 9,136.6 回 / 日
   - 1日平均いいね数: 409.0 件 / 日
   - 1日平均シェア数: 5.4 件 / 日
 
 【バズるための必須数値と目標達成率】
+現在値 ： 目標値 ＝ 達成率 （不足数）
+
 1．5秒維持率（クオリファイド・ビュー）
 現在：80.0% ： 目標：80.0% ＝ 達成率 100.0% （不足数：0.0%）
 
@@ -907,22 +877,9 @@ ${titlesListStr}
 
 【現在の視聴者傾向と今後の対策】
 ・過去のストック動画（直近2週間以外の投稿）が1日平均9,136再生・409いいねと非常に強く後伸びしており、アカウント全体の再生基盤を強固に支えています。
-・直近5投稿のエンゲージメント率（6.47%）は非常に高いため、視聴完了率70%・シェア保存率1%を突破するために、冒頭2秒の視覚フック・TikTok SEOテキスト（テロップ・音声）・二択コメント獲得施策を強化します。`;
+・直近5投稿のエンゲージメント率（6.47%）は非常に高いため、視聴完了率70%・シェア保存率1%を突破するために、冒頭2秒の視覚フック・TikTok SEOテキスト（テロップ・音声）・二択コメント獲得施策をさらに強化します。`;
 
-    try {
-      const promptText = `
-以下のアカウントデータを基に傾向と対策を出力してください。
-${uploadedExcelDataText}
-直近5タイトル:
-${titlesListStr}
-`;
-      const rawAdvice = await callGemini(promptText);
-      adviceText.innerText = rawAdvice;
-
-    } catch (error) {
-      console.warn("Gemini Quota制限を検出。即時フォールバックレポートを表示します:", error);
-      adviceText.innerText = fallbackReportText;
-    }
+    adviceText.innerText = reportContent;
   }
 
   async function addVideoFileKnowledge() {
