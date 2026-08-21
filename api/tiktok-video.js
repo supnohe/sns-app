@@ -3,19 +3,14 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { url } = req.query;
-
-  if (!url) {
-    return res.status(400).json({ success: false, error: 'URLが指定されていません' });
-  }
+  if (!url) return res.status(400).json({ success: false, error: 'URLが指定されていません' });
 
   const cleanUrl = url.split('?')[0];
 
-  // 1. TikTok Video ID（19桁数値）からタイムスタンプ（JST）を完全解読
+  // 1. TikTok Video ID（19桁数値）から正確な投稿日（JST）を数学的解読
   let postTimestamp = Date.now();
   let dateFormatted = "";
   let isoDate = "";
@@ -46,14 +41,13 @@ export default async function handler(req, res) {
     isoDate = today.toISOString().split('T')[0];
   }
 
-  // 2. サーバーからoEmbed APIで本物の投稿本文を取得
+  // 2. oEmbed API経由でタイトルを取得
   let extractedTitle = "";
-
   try {
     const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(cleanUrl)}`;
     const response = await fetch(oembedUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       }
     });
 
@@ -67,24 +61,34 @@ export default async function handler(req, res) {
     console.error("oEmbed Fetch Error:", err);
   }
 
-  // HTMLメタタグフォールバック
-  if (!extractedTitle) {
-    try {
-      const htmlRes = await fetch(cleanUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-      });
-      const htmlText = await htmlRes.text();
-      const ogMatch = htmlText.match(/<meta\s+property=["']og:description["']\s+content=["'](.*?)["']/i) ||
-                      htmlText.match(/<meta\s+name=["']description["']\s+content=["'](.*?)["']/i);
+  // 3. ユーザーAPIから最新の再生数・いいね数推計値を安全に算出
+  let views = 0, likes = 0, comments = 0, shares = 0;
 
-      if (ogMatch && ogMatch[1]) {
-        extractedTitle = ogMatch[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').trim();
+  try {
+    const userMatch = cleanUrl.match(/@([a-zA-Z0-9_\.\-]+)/);
+    const uniqueId = userMatch ? userMatch[1] : "supnohe";
+
+    const userApiUrl = `https://www.tiktok.com/node/share/user/@${uniqueId}?request_from=server`;
+    const userRes = await fetch(userApiUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       }
-    } catch (err) {
-      console.error("HTML Fallback Error:", err);
+    });
+
+    if (userRes.ok) {
+      const userData = await userRes.json();
+      const itemList = userData?.body?.itemList || [];
+      const targetVideo = itemList.find(item => item.id === (match ? match[1] : ''));
+
+      if (targetVideo && targetVideo.stats) {
+        views = targetVideo.stats.playCount || 0;
+        likes = targetVideo.stats.diggCount || 0;
+        comments = targetVideo.stats.commentCount || 0;
+        shares = targetVideo.stats.shareCount || 0;
+      }
     }
+  } catch (err) {
+    console.error("User API Fetch Error:", err);
   }
 
   return res.status(200).json({
@@ -92,6 +96,12 @@ export default async function handler(req, res) {
     title: extractedTitle || `TikTok動画 (${dateFormatted})`,
     date: dateFormatted,
     isoDate: isoDate,
-    timestamp: postTimestamp
+    timestamp: postTimestamp,
+    metrics: {
+      views: views,
+      likes: likes,
+      comments: comments,
+      shares: shares
+    }
   });
 }
