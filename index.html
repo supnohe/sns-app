@@ -175,7 +175,7 @@
       font-size: 11px;
       border-radius: 6px;
       padding: 2px 6px;
-      width: 60px;
+      width: 70px;
     }
 
     .date-input-inline {
@@ -309,7 +309,7 @@
           </div>
         </div>
 
-        <!-- 📈 📊 直近5投稿＆後伸び1日平均分析（リアルタイム更新ボタン付き） -->
+        <!-- 📈 📊 直近5投稿＆後伸び1日平均分析 -->
         <div class="dash-card">
           <div class="card-header"><span>📊</span> 現在の傾向と目標（直近5投稿＆後伸び1日平均分析）</div>
           
@@ -318,7 +318,7 @@
               <label>📁 分析用Excelデータ (.xlsx) を読み込む（任意）</label>
               <input type="file" id="excelFilesInput" class="form-input" accept=".xlsx, .xls, .csv" multiple onchange="handleExcelUpload(event)">
             </div>
-            <p id="excelStatus" style="font-size: 12px; color: #38bdf8; margin-bottom: 16px;">※動画の再生数・いいね数はURL追加時および更新ボタンで最新自動取得されます。</p>
+            <p id="excelStatus" style="font-size: 12px; color: #38bdf8; margin-bottom: 16px;">※数値枠（再生・いいね数など）は直接編集・手動入力も可能です。</p>
 
             <!-- 🔗 URL追加・一括更新ボタンフォーム -->
             <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
@@ -331,10 +331,10 @@
               <p id="recentUrlStatus" style="font-size: 12px; color: #38bdf8; margin-top: 6px;"></p>
             </div>
 
-            <!-- 📝 蓄積された直近投稿タイトル5個（詳細数値表示） -->
+            <!-- 📝 蓄積された直近投稿タイトル5個 -->
             <div style="margin-top: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📋 登録済みの直近5投稿（再生・いいね・コメント・シェア自動取得）</label>
+                <label style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📋 登録済みの直近5投稿（再生・いいね・コメント・シェア自動取得/直接編集可能）</label>
                 <button type="button" style="background:transparent; border:none; color: var(--text-muted); font-size:11px; cursor:pointer;" onclick="clearAllRecentTitles()">全クリア</button>
               </div>
               <ul id="recentTitlesList" class="title-history-list">
@@ -400,7 +400,26 @@
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   let currentUser = null;
   let storedRecentVideos = [];
-  let parsedExcelStats = null;
+
+  let uploadedExcelDataText = `
+【取り込み済み分析データ（@supnohe）】
+■ 1. 直近2週間に投稿された動画の集計データ
+  ・平均再生数: 836,252.8 回
+  ・平均いいね数: 53,230.8 件
+  ・平均シェア数: 845.0 件
+  ・エンゲージメント率 ( (いいね+シェア)÷再生数 ): 6.47 %
+
+■ 2. 直近2週間に投稿された動画以外の「1日平均」獲得数値 (後伸びストック効果)
+  （計算式: （直近2週間の全体数値 - 直近2週間に投稿された動画数値）÷ 14日）
+  ・1日平均再生数: 9,136.6 回 / 日
+  ・1日平均いいね数: 409.0 件 / 日
+  ・1日平均シェア数: 5.4 件 / 日
+
+■ 3. アカウント基本属性
+  - 性別: 女性 53.0%、男性 44.0%、その他 3.0%
+  - 主要地域: 日本 29.8%、フィリピン 4.5%、ブラジル 3.2%
+  - アクティブ時間帯: 23:00〜1:00（ピーク時 4,300〜4,765人がアクティブ）
+`;
 
   window.onload = async function() {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -751,7 +770,7 @@
     }
   }
 
-  // 🚀 URL追加時にVercel APIから最新数値（再生・いいね・コメント・シェア）を一発自動取得
+  // 🚀 URL追加処理
   async function handleAddRecentVideoUrl(event) {
     if (event) {
       event.preventDefault();
@@ -766,7 +785,7 @@
 
     const cleanUrl = rawUrl.split('?')[0];
     status.style.color = "#38bdf8";
-    status.innerText = "⏳ Vercelサーバー経由で投稿文・投稿日・最新数値を自動同期中...";
+    status.innerText = "⏳ Vercelサーバー経由で投稿文と日付を抽出中...";
 
     try {
       const apiRes = await fetch(`/api/tiktok-video?url=${encodeURIComponent(cleanUrl)}`);
@@ -789,7 +808,7 @@
         sortAndSaveRecentVideos();
 
         status.style.color = "#4ade80";
-        status.innerText = `✅ 「${resData.title}」を追加！最新数値を全自動同期しました！`;
+        status.innerText = `✅ 「${resData.title}」を追加しました！`;
         urlInput.value = "";
       } else {
         throw new Error(resData.error || "取得エラー");
@@ -802,7 +821,7 @@
     }
   }
 
-  // 🔄 「更新」ボタン押下時：登録済み動画全5本の最新数値（再生・いいね・コメント・シェア）を一括リアルタイム同期
+  // 🔄 「更新」ボタン処理
   async function refreshAllRecentMetrics(event) {
     if (event) {
       event.preventDefault();
@@ -815,7 +834,7 @@
     }
 
     status.style.color = "#38bdf8";
-    status.innerText = `⏳ 登録済み動画 ${storedRecentVideos.length}件の最新数値をリアルタイム同期中...`;
+    status.innerText = `⏳ 登録済み動画 ${storedRecentVideos.length}件の最新数値を同期中...`;
 
     try {
       for (let i = 0; i < storedRecentVideos.length; i++) {
@@ -836,7 +855,7 @@
 
       sortAndSaveRecentVideos();
       status.style.color = "#4ade80";
-      status.innerText = `✅ 全 ${storedRecentVideos.length}件の現時点における再生数・いいね数・コメント数・シェア数を更新しました！`;
+      status.innerText = `✅ 数値の自動更新処理が完了しました！`;
 
     } catch (err) {
       console.error(err);
@@ -858,7 +877,7 @@
     }
   }
 
-  // ⚡ 動的集計と傾向レポートの高速生成
+  // ⚡ 動的数値でのサマリー出力
   function analyzeAccountTrends() {
     const resultBox = document.getElementById('trendResultBox');
     const adviceText = document.getElementById('trendAdviceText');
@@ -899,12 +918,12 @@
     const engRate = avgViews > 0 ? (((avgLikes + avgShares + avgComments) / avgViews) * 100).toFixed(2) : "0.00";
 
     const reportContent = `【現在の傾向】
-・まとめ: 登録された直近投稿（実数値）の最新動的集計レポート。
+・まとめ: 登録された直近投稿の動的集計レポート。
 ・性別割合: 女性 53.0% / 男性 44.0% / その他 3.0%
 ・主要視聴地域: 日本 29.8% / フィリピン 4.5% / ブラジル 3.2%
 ・アクティブ時間帯: 23:00〜1:00（ピーク時 4,300〜4,765人がアクティブ）
 
-・① 直近の投稿${validVideoCount}個のリアルタイム実数値データ:
+・① 直近の投稿${validVideoCount}個の実数値集計データ:
 ${titlesListStr}
   - 直近投稿 平均再生数: ${avgViews.toLocaleString()} 回
   - 直近投稿 平均いいね数: ${avgLikes.toLocaleString()} 件
