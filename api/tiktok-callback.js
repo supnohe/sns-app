@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   const { code } = req.query;
   const CLIENT_KEY = "sbawb0xfwm83i7dzw2";
   const CLIENT_SECRET = "vlCFuD4w4r2OI78mtTqcz45Um94KdzS1";
-  const REDIRECT_URI = "https://sns-app-iota.vercel.app/api/tiktok-callback";
+  const REDIRECT_URI = "https://sns-app-iota.vercel.app/api/tiktok-callback.js";
 
   if (!code) {
     return res.status(400).send("認可コードが受け取れませんでした。");
@@ -24,8 +24,8 @@ export default async function handler(req, res) {
     const tokenData = await tokenRes.json();
     
     if (tokenData.access_token) {
-      // トークンを持ってトップ画面へ戻る
-      res.redirect(`/?access_token=${tokenData.access_token}&open_id=${tokenData.open_id || ''}`);
+      res.writeHead(302, { Location: `/?access_token=${tokenData.access_token}&open_id=${tokenData.open_id || ''}` });
+      res.end();
     } else {
       res.status(400).send("トークン取得に失敗しました: " + JSON.stringify(tokenData));
     }
