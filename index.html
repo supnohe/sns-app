@@ -306,8 +306,8 @@
               <input type="text" id="inAccUrl" class="form-input" placeholder="https://www.tiktok.com/@supnohe">
             </div>
 
-            <!-- 🎵 TikTok公式OAuth連携ボタン -->
-            <button type="button" class="btn" style="background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; font-weight: bold; margin-bottom: 10px;" onclick="location.href='/api/tiktok-login'">
+            <!-- 🎵 TikTok公式OAuth連携ボタン (.jsパス対応) -->
+            <button type="button" class="btn" style="background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; font-weight: bold; margin-bottom: 10px;" onclick="location.href='/api/tiktok-login.js'">
               🎵 TikTokアカウントと公式連携（OAuthログイン）
             </button>
 
@@ -418,7 +418,6 @@
       const accessToken = urlParams.get('access_token');
       if (accessToken) {
         document.getElementById('accStatus').innerText = "✅ TikTok公式連携に成功しました！データを同期中...";
-        // URLのパラメータをきれいにする
         window.history.replaceState({}, document.title, "/");
       }
     } else {
