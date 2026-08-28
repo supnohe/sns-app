@@ -354,18 +354,13 @@
           </div>
         </div>
 
-        <!-- 🎯 目標（ロールモデル）アカウント分析 & 比較アドバイス -->
+        <!-- 🎯 目標（ロールモデル）アカウント固有のリアルタイム精密比較 -->
         <div class="dash-card">
-          <div class="card-header"><span>🎯</span> 🎯 ロールモデル（目標アカウント）の精密自動解析 & 比較改善アドバイス</div>
+          <div class="card-header"><span>🎯</span> 🎯 ロールモデルアカウント固有のリアルタイム精密比較</div>
 
           <div class="form-group">
-            <label>🔗 目標・参考にしたいTikTokアカウントのURL（またはID）</label>
-            <input type="text" id="roleModelUrlInput" class="form-input" placeholder="https://www.tiktok.com/@lulu_lunapi または @lulu_lunapi" value="https://www.tiktok.com/@lulu_lunapi">
-          </div>
-
-          <div class="form-group">
-            <label>💃 アカウントのジャンル（例: ダンス、振り付け、カバー）</label>
-            <input type="text" id="roleModelGenreInput" class="form-input" placeholder="ダンス" value="ダンス">
+            <label>🔗 目標アカウントのURL（またはID）</label>
+            <input type="text" id="roleModelUrlInput" class="form-input" placeholder="https://www.tiktok.com/@lulu_lunapi" value="https://www.tiktok.com/@lulu_lunapi">
           </div>
 
           <div class="form-group">
@@ -373,10 +368,10 @@
             <input type="file" id="myVideoForRoleModel" class="form-input" accept="video/*">
           </div>
 
-          <button type="button" class="btn btn-primary" onclick="analyzeRoleModelAndCompare()">🎯 ロールモデルを公開解析して完全比較アドバイスを生成</button>
+          <button type="button" class="btn btn-primary" onclick="analyzeRoleModelAndCompare()">🔥 WEBリアルタイム検索でアカウントの固有要素を精密分析</button>
 
           <div id="roleModelResultBox" class="result-box">
-            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">💡 ロールモデル比較・改善戦略レポート</div>
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">💡 ロールモデル固有のバズ要素＆再現アクションレポート</div>
             <div id="roleModelAdviceText" class="advice-text">分析中...</div>
           </div>
         </div>
@@ -911,10 +906,9 @@ ${titlesListStr}
     adviceText.innerText = reportContent;
   }
 
-  // 🎯 ダンス等ジャンルを絶対固定したロールモデル比較分析
+  // 🎯 WEBリアルタイム検索（Grounding）を強制適用した個別アカウント精密比較
   async function analyzeRoleModelAndCompare() {
     const rawInput = document.getElementById('roleModelUrlInput').value.trim();
-    const genreInput = document.getElementById('roleModelGenreInput').value.trim() || "ダンス";
     const myVideoFile = document.getElementById('myVideoForRoleModel').files[0];
     const resultBox = document.getElementById('roleModelResultBox');
     const adviceText = document.getElementById('roleModelAdviceText');
@@ -922,7 +916,7 @@ ${titlesListStr}
     if (!rawInput) return alert("ロールモデルアカウントのURL（またはユーザー名）を入力してください");
 
     resultBox.style.display = "block";
-    adviceText.innerText = `⏳ ロールモデル (@${rawInput.replace('@','')} / ジャンル: ${genreInput}) のバズ要素をAI解析中...`;
+    adviceText.innerText = `🔍 WEB検索を実行し、アカウント固有の情報を収集・解析中...`;
 
     let username = rawInput.replace('@', '').trim();
     const match = rawInput.match(/@([a-zA-Z0-9_\.\-]+)/);
@@ -935,32 +929,29 @@ ${titlesListStr}
         myVideoData = { mime_type: myVideoFile.type || "video/mp4", data: base64 };
       }
 
-      // 100% ダンス・指定ジャンルに厳格固定するプロンプト
+      // 一般論を徹底禁止し、検索された具体的データのみで比較させる厳格プロンプト
       const promptText = `
-【重要前提条件】
-分析対象のロールモデルアカウント「@${username}」は、**「${genreInput}」系のクリエイター・アカウント**です（※カフェ情報やグルメ等の別ジャンルと誤解しないでください）。
+【最重要命令】
+「TikTokのアカウント @${username}」または「lulu_lunapi」について、WEB検索機能（Google Search）を必ず実行して最新情報・投稿スタイルを調査してください。
+一般的な「どんなアカウントにも言える抽象的なアドバイス」は一切禁止します。
 
-【タスク】
-「@${username}」という「${genreInput}」系クリエイターのバズっている動画の構成要素（トレンド音源の使い方、振付の覚えやすさ・見栄え、画角・照明、テロップの入れ方、冒頭2秒の引き込み）を徹底分析し、ユーザーのコンテンツ改善のための比較・戦略レポートを作成してください。
+検索で判明した @${username} の【具体的要素（具体的なメンバー編成、衣装やロケーションの特徴、よく使っている音源・曲名、人気の振付の癖、特徴的な挨拶やポーズ）】を必ず明記した上で、レポートを作成してください。
 
-【出力形式】
-### **【対象アカウント】 @${username}（ジャンル: ${genreInput}）**
+### **【対象アカウント固有の分析レポート】 @${username}**
 
-1. **ロールモデル (@${username}) のバズ・ダンスコンテンツの強み**
-   - 使用音源の選び方とトレンド乗っかり術
-   - 視覚的フック（画角、衣装、画質、冒頭のダンスの入り方）
-   - 視聴者が真似したくなる（または保存したくなる）構成の工夫
+1. **@${username} 固有のバズ構成・ビジュアル要素（検索結果ベース）**
+   - メンバー構成やビジュアル・衣装のトレードマーク
+   - 特に再生数が伸びている投稿・動画の具体的特徴（曲名、画角、フック）
+   - コメント欄で盛り上がっているポイント
 
-2. **自分のアカウント（ダンス投稿）との比較・課題点**
-   - ロールモデルと自分のダンス動画におけるバズ引き込み要素の違い
-
-3. **ダンス動画で今すぐ実践すべき3つの改善アクション**
-   - ① 冒頭2秒でスクロールを止める視覚テロップ＆ポーズ案
-   - ② トレンド音源×ダンス振付の掛け合わせテクニック
-   - ③ 真似すべきダンス用投稿キャプション＆ハッシュタグセット
+2. **@${username} に近づくための再現具体的アクション**
+   - ① 冒頭2秒の視覚フック（@${username} が実際に行っている惹きつけポーズ・画角の真似し方）
+   - ② 使用すべき音源・テンポ感の選び方
+   - ③ @${username} の雰囲気を再現する投稿文・キャプション案
 `;
 
-      const rawAdvice = await parseGeminiResponse(promptText, myVideoData);
+      // リアルタイムGoogle検索を強制有効化して通信
+      const rawAdvice = await parseGeminiResponseWithSearch(promptText, myVideoData);
       adviceText.innerText = rawAdvice;
 
     } catch (error) {
@@ -1031,6 +1022,38 @@ URL: ${rawUrl}
       console.error(error);
       status.innerText = "❌ エラー: " + error.message;
     }
+  }
+
+  // 🔍 リアルタイム検索（Google Search Grounding）を強制適用するレスポンス関数
+  async function parseGeminiResponseWithSearch(promptText, inlineData = null) {
+    const parts = [{ text: promptText }];
+    if (inlineData) parts.push({ inline_data: inlineData });
+
+    const requestBody = {
+      contents: [{ parts }],
+      tools: [{ google_search: {} }] // 強制ウェブ検索
+    };
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
+
+    const data = await res.json();
+
+    if (data.candidates && data.candidates.length > 0) {
+      const cand = data.candidates[0];
+      if (cand.content && cand.content.parts && cand.content.parts.length > 0) {
+        return cand.content.parts.map(p => p.text || '').join('');
+      }
+    }
+
+    if (data.error) {
+      throw new Error(data.error.message || "API通信エラー");
+    }
+
+    return "解析完了";
   }
 
   async function parseGeminiResponse(promptText, inlineData = null) {
