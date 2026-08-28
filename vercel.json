@@ -1,28 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/tiktok1e7eLSU4m3LixA6yWeB2ekzYdFIlZCje.txt",
-      "destination": "/api/tiktok1e7eLSU4m3LixA6yWeB2ekzYdFIlZCje.js"
-    },
-    {
-      "source": "/tiktok1e7eLSU4m3LixA6yWeB2ekzYdFIlZCje",
-      "destination": "/api/tiktok1e7eLSU4m3LixA6yWeB2ekzYdFIlZCje.js"
-    }
-  ]
-}
-{
-  "rewrites": [
-    {
       "source": "/tiktok1e7eLSU4m3LixA6yWeb2ekzYdFI1ZCje.txt",
       "destination": "/api/tiktok1e7eLSU4m3LixA6yWeb2ekzYdFI1ZCje.js"
     },
     {
       "source": "/tiktok1e7eLSU4m3LixA6yWeb2ekzYdFI1ZCje",
       "destination": "/api/tiktok1e7eLSU4m3LixA6yWeb2ekzYdFI1ZCje.js"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
     }
   ]
 }
