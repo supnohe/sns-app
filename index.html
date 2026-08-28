@@ -413,11 +413,30 @@
       currentUser = session.user;
       showAppScreen();
 
-      // OAuthリダイレクト後のアクセストークンを検出
+      // OAuthリダイレクト後のパラメータを検出して自動反映・保存
       const urlParams = new URLSearchParams(window.location.search);
       const accessToken = urlParams.get('access_token');
       if (accessToken) {
-        document.getElementById('accStatus').innerText = "✅ TikTok公式連携に成功しました！データを同期中...";
+        const username = urlParams.get('username');
+        const followers = urlParams.get('followers');
+        const likes = urlParams.get('likes');
+        const videos = urlParams.get('videos');
+
+        if (username) document.getElementById('accUsername').innerText = username;
+        if (followers !== null) document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
+        if (likes !== null) document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
+        if (videos !== null) document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
+
+        const accData = {
+          url: document.getElementById('inAccUrl').value,
+          username: username || document.getElementById('accUsername').innerText,
+          followers: followers || 0,
+          likes: likes || 0,
+          videos: videos || 0
+        };
+        localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
+
+        document.getElementById('accStatus').innerText = "✅ TikTok公式連携＆最新データの取得に成功しました！";
         window.history.replaceState({}, document.title, "/");
       }
     } else {
@@ -439,12 +458,10 @@
     const saved = JSON.parse(localStorage.getItem(`my_tiktok_acc_${currentUser.id}`) || '{}');
     if (saved.url) document.getElementById('inAccUrl').value = saved.url;
 
-    if (saved.username) {
-      document.getElementById('accUsername').innerText = saved.username;
-      document.getElementById('accFollowers').innerText = Number(saved.followers || 0).toLocaleString();
-      document.getElementById('accLikes').innerText = Number(saved.likes || 0).toLocaleString();
-      document.getElementById('accVideos').innerText = Number(saved.videos || 0).toLocaleString();
-    }
+    if (saved.username) document.getElementById('accUsername').innerText = saved.username;
+    if (saved.followers !== undefined) document.getElementById('accFollowers').innerText = Number(saved.followers).toLocaleString();
+    if (saved.likes !== undefined) document.getElementById('accLikes').innerText = Number(saved.likes).toLocaleString();
+    if (saved.videos !== undefined) document.getElementById('accVideos').innerText = Number(saved.videos).toLocaleString();
 
     loadRecentVideosList();
   }
@@ -610,7 +627,14 @@
     const displayName = `@${uniqueId}`;
     document.getElementById('accUsername').innerText = displayName;
 
-    const accData = { url: cleanUrl, username: displayName };
+    const saved = JSON.parse(localStorage.getItem(`my_tiktok_acc_${currentUser.id}`) || '{}');
+    const accData = {
+      url: cleanUrl,
+      username: displayName,
+      followers: saved.followers || 0,
+      likes: saved.likes || 0,
+      videos: saved.videos || 0
+    };
     localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
     document.getElementById('accStatus').innerText = `✅ アカウント情報を保存しました！`;
