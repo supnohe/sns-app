@@ -29,7 +29,7 @@ export default async function handler(req, res) {
       return res.status(400).send("トークン取得に失敗しました: " + JSON.stringify(tokenData));
     }
 
-    // 2. ユーザー統計情報（フォロワー数・総いいね数等）を取得
+    // 2. ユーザー基本・統計情報を取得
     const statsFields = "open_id,union_id,avatar_url,display_name,follower_count,likes_count,video_count";
     const userRes = await fetch(`https://open.tiktokapis.com/v2/user/info/?fields=${statsFields}`, {
       headers: { "Authorization": `Bearer ${accessToken}` }
@@ -37,36 +37,45 @@ export default async function handler(req, res) {
     const userData = await userRes.json();
     const userInfo = userData?.data?.user || {};
 
-    // 3. 直近の動画一覧・各再生数や反応数を自動取得
+    // 3. 動画一覧・各数値をTikTok公式APIから取得
     let videosList = [];
-    try {
-      const videoFields = "id,title,create_time,cover_image_url,share_url,video_description,like_count,comment_count,share_count,view_count";
-      const videoRes = await fetch("https://open.tiktokapis.com/v2/video/list/?max_count=10", {
+    const videoFields = "id,title,create_time,share_url,video_description,like_count,comment_count,share_count,view_count";
+
+    const fetchVideoList = async (endpoint) => {
+      return await fetch(endpoint, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ fields: videoFields })
+        body: JSON.stringify({ max_count: 5, fields: videoFields })
       });
-      const videoData = await videoRes.json();
+    };
+
+    try {
+      // APIエンドポイントのコール（v2規格）
+      let videoRes = await fetchVideoList("https://open.tiktokapis.com/v2/post/publish/video/list/");
+      let videoData = await videoRes.json();
+
+      if (!videoData?.data?.videos) {
+        // 別エンドポイントのフォールバック試行
+        videoRes = await fetchVideoList("https://open.tiktokapis.com/v2/video/list/");
+        videoData = await videoRes.json();
+      }
 
       if (videoData?.data?.videos) {
         videosList = videoData.data.videos.map(v => {
           const createDate = v.create_time ? new Date(v.create_time * 1000) : new Date();
-          const isoDate = createDate.toISOString().split('T')[0];
-          const dateStr = createDate.toLocaleDateString('ja-JP');
-
           return {
             title: v.title || v.video_description || "TikTok動画",
             url: v.share_url || "",
-            date: dateStr,
-            isoDate: isoDate,
+            date: createDate.toLocaleDateString('ja-JP'),
+            isoDate: createDate.toISOString().split('T')[0],
             timestamp: createDate.getTime(),
-            views: v.view_count || 0,
-            likes: v.like_count || 0,
-            comments: v.comment_count || 0,
-            shares: v.share_count || 0
+            views: Number(v.view_count || 0),
+            likes: Number(v.like_count || 0),
+            comments: Number(v.comment_count || 0),
+            shares: Number(v.share_count || 0)
           };
         });
       }
@@ -74,7 +83,7 @@ export default async function handler(req, res) {
       console.error("Video list fetch error:", vErr);
     }
 
-    // 4. アプリへリダイレクトして取得データを返却
+    // 4. アプリへリダイレクト
     const redirectParams = new URLSearchParams({
       access_token: accessToken,
       username: userInfo.display_name || "TikTok User",
