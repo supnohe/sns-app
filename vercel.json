@@ -10,3 +10,19 @@
     }
   ]
 }
+{
+  "rewrites": [
+    {
+      "source": "/tiktok1e7eLSU4m3LixA6yWeb2ekzYdFI1ZCje.txt",
+      "destination": "/api/tiktok1e7eLSU4m3LixA6yWeb2ekzYdFI1ZCje.js"
+    },
+    {
+      "source": "/tiktok1e7eLSU4m3LixA6yWeb2ekzYdFI1ZCje",
+      "destination": "/api/tiktok1e7eLSU4m3LixA6yWeb2ekzYdFI1ZCje.js"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
+  ]
+}
