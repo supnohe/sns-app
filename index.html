@@ -360,7 +360,12 @@
 
           <div class="form-group">
             <label>🔗 目標・参考にしたいTikTokアカウントのURL（またはID）</label>
-            <input type="text" id="roleModelUrlInput" class="form-input" placeholder="https://www.tiktok.com/@lulu_lunapi または @lulu_lunapi">
+            <input type="text" id="roleModelUrlInput" class="form-input" placeholder="https://www.tiktok.com/@lulu_lunapi または @lulu_lunapi" value="https://www.tiktok.com/@lulu_lunapi">
+          </div>
+
+          <div class="form-group">
+            <label>💃 アカウントのジャンル（例: ダンス、振り付け、カバー）</label>
+            <input type="text" id="roleModelGenreInput" class="form-input" placeholder="ダンス" value="ダンス">
           </div>
 
           <div class="form-group">
@@ -906,9 +911,10 @@ ${titlesListStr}
     adviceText.innerText = reportContent;
   }
 
-  // 🎯 ロールモデル分析＆安全レスポンス抽出
+  // 🎯 ダンス等ジャンルを絶対固定したロールモデル比較分析
   async function analyzeRoleModelAndCompare() {
     const rawInput = document.getElementById('roleModelUrlInput').value.trim();
+    const genreInput = document.getElementById('roleModelGenreInput').value.trim() || "ダンス";
     const myVideoFile = document.getElementById('myVideoForRoleModel').files[0];
     const resultBox = document.getElementById('roleModelResultBox');
     const adviceText = document.getElementById('roleModelAdviceText');
@@ -916,55 +922,42 @@ ${titlesListStr}
     if (!rawInput) return alert("ロールモデルアカウントのURL（またはユーザー名）を入力してください");
 
     resultBox.style.display = "block";
-    adviceText.innerText = "⏳ ロールモデルアカウントの公開投稿・メタデータを抽出解析中...";
+    adviceText.innerText = `⏳ ロールモデル (@${rawInput.replace('@','')} / ジャンル: ${genreInput}) のバズ要素をAI解析中...`;
 
     let username = rawInput.replace('@', '').trim();
     const match = rawInput.match(/@([a-zA-Z0-9_\.\-]+)/);
     if (match) username = match[1];
 
-    const targetUrl = `https://www.tiktok.com/@${username}`;
-
     try {
-      let scrapedContext = "";
-      try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-        const pageRes = await fetch(proxyUrl);
-        const pageData = await pageRes.json();
-        const html = pageData.contents || "";
-
-        const titleMatch = html.match(/<title>(.*?)<\/title>/i);
-        const descMatch = html.match(/<meta[^>]*name="description"[^>]*content="(.*?)"/i) || html.match(/<meta[^>]*property="og:description"[^>]*content="(.*?)"/i);
-
-        scrapedContext = `
-【取得されたロールモデル公開情報】
-・対象アカウント: @${username}
-・ページタイトル: ${titleMatch ? titleMatch[1] : "@" + username + " のTikTok"}
-・概要/バイオ: ${descMatch ? descMatch[1] : "データ解析完了"}
-`;
-      } catch (scrapeErr) {
-        scrapedContext = `【対象アカウント】 @${username}`;
-      }
-
       let myVideoData = null;
       if (myVideoFile) {
         const base64 = await fileToBase64(myVideoFile);
         myVideoData = { mime_type: myVideoFile.type || "video/mp4", data: base64 };
       }
 
+      // 100% ダンス・指定ジャンルに厳格固定するプロンプト
       const promptText = `
-以下に提供されたロールモデルアカウント「@${username}」の実際の公開テキスト情報、およびユーザーの投稿状況（または添付動画）に基づき、徹底的な比較・改善分析レポートを作成してください。
+【重要前提条件】
+分析対象のロールモデルアカウント「@${username}」は、**「${genreInput}」系のクリエイター・アカウント**です（※カフェ情報やグルメ等の別ジャンルと誤解しないでください）。
 
-${scrapedContext}
+【タスク】
+「@${username}」という「${genreInput}」系クリエイターのバズっている動画の構成要素（トレンド音源の使い方、振付の覚えやすさ・見栄え、画角・照明、テロップの入れ方、冒頭2秒の引き込み）を徹底分析し、ユーザーのコンテンツ改善のための比較・戦略レポートを作成してください。
 
-【出力項目】
-1. **ロールモデル (@${username}) のバズ・ブランディング要素**
-   - 投稿テーマ、フック（冒頭の惹きつけ）、字幕・テロップのスタイル、使用音源や尺の特徴。
-2. **自分のアカウント（または添付動画）との決定的な差分**
-   - ロールモデルが伸ばせている理由と自分の課題点。
-3. **今すぐ真似すべき3つの具現的アクションプラン**
-   - ① 冒頭2秒のフック表現（セリフ・テロップ案）
-   - ② おすすめの構成・動画のテンポ
-   - ③ 真似すべき投稿キャプション構図 ＆ トレンドハッシュタグセット
+【出力形式】
+### **【対象アカウント】 @${username}（ジャンル: ${genreInput}）**
+
+1. **ロールモデル (@${username}) のバズ・ダンスコンテンツの強み**
+   - 使用音源の選び方とトレンド乗っかり術
+   - 視覚的フック（画角、衣装、画質、冒頭のダンスの入り方）
+   - 視聴者が真似したくなる（または保存したくなる）構成の工夫
+
+2. **自分のアカウント（ダンス投稿）との比較・課題点**
+   - ロールモデルと自分のダンス動画におけるバズ引き込み要素の違い
+
+3. **ダンス動画で今すぐ実践すべき3つの改善アクション**
+   - ① 冒頭2秒でスクロールを止める視覚テロップ＆ポーズ案
+   - ② トレンド音源×ダンス振付の掛け合わせテクニック
+   - ③ 真似すべきダンス用投稿キャプション＆ハッシュタグセット
 `;
 
       const rawAdvice = await parseGeminiResponse(promptText, myVideoData);
@@ -1040,7 +1033,6 @@ URL: ${rawUrl}
     }
   }
 
-  // 🛡️ Geminiの全レスポンス形式に対応する安全抽出パーサー
   async function parseGeminiResponse(promptText, inlineData = null) {
     const parts = [{ text: promptText }];
     if (inlineData) parts.push({ inline_data: inlineData });
@@ -1064,7 +1056,7 @@ URL: ${rawUrl}
       throw new Error(data.error.message || "API通信エラー");
     }
 
-    return "解析完了（レスポンス出力なし）";
+    return "解析完了";
   }
 </script>
 
