@@ -306,7 +306,12 @@
               <input type="text" id="inAccUrl" class="form-input" placeholder="https://www.tiktok.com/@supnohe">
             </div>
 
-            <button type="button" class="btn btn-primary" onclick="saveAccountData()">URLからデータをリアルタイム自動同期</button>
+            <!-- 🎵 TikTok公式OAuth連携ボタン -->
+            <button type="button" class="btn" style="background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; font-weight: bold; margin-bottom: 10px;" onclick="location.href='/api/tiktok-login'">
+              🎵 TikTokアカウントと公式連携（OAuthログイン）
+            </button>
+
+            <button type="button" class="btn btn-primary" onclick="saveAccountData()">URLからデータを手動同期</button>
             <p id="accStatus" style="font-size: 12px; color: #38bdf8; margin-top: 8px;"></p>
           </div>
         </div>
@@ -320,15 +325,14 @@
               <label>📁 分析用Excelデータ (.xlsx) を読み込む（任意）</label>
               <input type="file" id="excelFilesInput" class="form-input" accept=".xlsx, .xls, .csv" multiple onchange="handleExcelUpload(event)">
             </div>
-            <p id="excelStatus" style="font-size: 12px; color: #38bdf8; margin-bottom: 16px;">※各動画の数値枠は直接入力のほか、右の更新ボタンで一括同期できます。</p>
+            <p id="excelStatus" style="font-size: 12px; color: #38bdf8; margin-bottom: 16px;">※各動画の数値枠は手動入力で永続保存・分析できます。</p>
 
-            <!-- 🔗 URL追加フォーム & 🔄 最新数値に更新ボタン -->
+            <!-- 🔗 URL追加フォーム -->
             <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
               <label>🎥 新しく投稿した動画のTikTok URLを追加</label>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <input type="text" id="recentVideoUrlInput" class="form-input" style="flex: 1; min-width: 200px;" placeholder="https://www.tiktok.com/@supnohe/video/...">
                 <button type="button" class="btn btn-secondary" style="width: auto; flex-shrink: 0;" onclick="handleAddRecentVideoUrl(event)">追加</button>
-                <button type="button" class="btn" style="width: auto; flex-shrink: 0; background: #0284c7; color: white;" onclick="refreshAllRecentMetrics(event)">🔄 最新数値に更新</button>
               </div>
               <p id="recentUrlStatus" style="font-size: 12px; color: #38bdf8; margin-top: 6px;"></p>
             </div>
@@ -336,7 +340,7 @@
             <!-- 📝 蓄積された直近投稿タイトル5個 -->
             <div style="margin-top: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📋 登録済みの直近5投稿（数値入力・自動更新可能）</label>
+                <label style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📋 登録済みの直近5投稿（数値入力は自動保存されます）</label>
                 <button type="button" style="background:transparent; border:none; color: var(--text-muted); font-size:11px; cursor:pointer;" onclick="clearAllRecentTitles()">全クリア</button>
               </div>
               <ul id="recentTitlesList" class="title-history-list">
@@ -403,31 +407,20 @@
   let currentUser = null;
   let storedRecentVideos = [];
 
-  let uploadedExcelDataText = `
-【取り込み済み分析データ（@supnohe）】
-■ 1. 直近2週間に投稿された動画の集計データ
-  ・平均再生数: 836,252.8 回
-  ・平均いいね数: 53,230.8 件
-  ・平均シェア数: 845.0 件
-  ・エンゲージメント率 ( (いいね+シェア)÷再生数 ): 6.47 %
-
-■ 2. 直近2週間に投稿された動画以外の「1日平均」獲得数値 (後伸びストック効果)
-  （計算式: （直近2週間の全体数値 - 直近2週間に投稿された動画数値）÷ 14日）
-  ・1日平均再生数: 9,136.6 回 / 日
-  ・1日平均いいね数: 409.0 件 / 日
-  ・1日平均シェア数: 5.4 件 / 日
-
-■ 3. アカウント基本属性
-  - 性別: 女性 53.0%、男性 44.0%、その他 3.0%
-  - 主要地域: 日本 29.8%、フィリピン 4.5%、ブラジル 3.2%
-  - アクティブ時間帯: 23:00〜1:00（ピーク時 4,300〜4,765人がアクティブ）
-`;
-
   window.onload = async function() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
       currentUser = session.user;
       showAppScreen();
+
+      // OAuthリダイレクト後のアクセストークンを検出
+      const urlParams = new URLSearchParams(window.location.search);
+      const accessToken = urlParams.get('access_token');
+      if (accessToken) {
+        document.getElementById('accStatus').innerText = "✅ TikTok公式連携に成功しました！データを同期中...";
+        // URLのパラメータをきれいにする
+        window.history.replaceState({}, document.title, "/");
+      }
     } else {
       showAuthScreen();
     }
@@ -452,10 +445,6 @@
       document.getElementById('accFollowers').innerText = Number(saved.followers || 0).toLocaleString();
       document.getElementById('accLikes').innerText = Number(saved.likes || 0).toLocaleString();
       document.getElementById('accVideos').innerText = Number(saved.videos || 0).toLocaleString();
-    }
-
-    if (saved.url) {
-      autoFetchTikTokAccount(saved.url, false);
     }
 
     loadRecentVideosList();
@@ -609,49 +598,23 @@
     }
   }
 
-  async function autoFetchTikTokAccount(rawUrl, isManualClick = true) {
-    const status = document.getElementById('accStatus');
-    if (isManualClick) status.innerText = "⏳ TikTokから本物のリアルタイムデータを同期中...";
-
+  function saveAccountData() {
+    if (!currentUser) return;
+    const rawUrl = document.getElementById('inAccUrl').value;
+    if (!rawUrl) return alert("TikTokのアカウントURLを入力してください");
+    
     const cleanUrl = rawUrl.split('?')[0];
     let uniqueId = "supnohe";
     const match = cleanUrl.match(/@([a-zA-Z0-9_\.\-]+)/);
     if (match) uniqueId = match[1];
 
-    try {
-      const response = await fetch(`/api/tiktok?uniqueId=${encodeURIComponent(uniqueId)}`);
-      const resData = await response.json();
+    const displayName = `@${uniqueId}`;
+    document.getElementById('accUsername').innerText = displayName;
 
-      if (resData.success) {
-        const followers = resData.followers || 0;
-        const likes = resData.likes || 0;
-        const videos = resData.videos || 0;
-        const displayName = resData.nickname ? `@${uniqueId} (${resData.nickname})` : `@${uniqueId}`;
+    const accData = { url: cleanUrl, username: displayName };
+    localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
-        document.getElementById('accUsername').innerText = displayName;
-        document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
-        document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
-        document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
-
-        const accData = { url: cleanUrl, username: displayName, followers, likes, videos };
-        localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
-
-        if (isManualClick) status.innerText = `✅ ${displayName} のリアルタイム最新データを正確に同期しました！`;
-      } else {
-        throw new Error("データ取得失敗");
-      }
-
-    } catch (err) {
-      console.error(err);
-      if (isManualClick) status.innerText = `⚠️ @${uniqueId} の自動読み込みを行いました。`;
-    }
-  }
-
-  function saveAccountData() {
-    if (!currentUser) return;
-    const rawUrl = document.getElementById('inAccUrl').value;
-    if (!rawUrl) return alert("TikTokのアカウントURLを入力してください");
-    autoFetchTikTokAccount(rawUrl, true);
+    document.getElementById('accStatus').innerText = `✅ アカウント情報を保存しました！`;
   }
 
   function fileToBase64(file) {
@@ -747,7 +710,8 @@
   }
 
   function updateRecentMetrics(index, field, value) {
-    storedRecentVideos[index][field] = Number(value) || 0;
+    const numVal = Number(value) || 0;
+    storedRecentVideos[index][field] = numVal;
     localStorage.setItem(`my_recent_titles_${currentUser.id}`, JSON.stringify(storedRecentVideos));
   }
 
@@ -772,7 +736,6 @@
     }
   }
 
-  // 🚀 URL追加処理
   async function handleAddRecentVideoUrl(event) {
     if (event) {
       event.preventDefault();
@@ -787,79 +750,26 @@
 
     const cleanUrl = rawUrl.split('?')[0];
     status.style.color = "#38bdf8";
-    status.innerText = "⏳ 投稿情報を取得中...";
+    status.innerText = "⏳ 投稿情報を追加中...";
 
-    try {
-      const apiRes = await fetch(`/api/tiktok-video?url=${encodeURIComponent(cleanUrl)}`);
-      const resData = await apiRes.json();
+    const newItem = {
+      title: `追加動画 (${new Date().toLocaleDateString()})`,
+      url: cleanUrl,
+      date: new Date().toLocaleDateString('ja-JP'),
+      isoDate: new Date().toISOString().split('T')[0],
+      timestamp: Date.now(),
+      views: 0,
+      likes: 0,
+      comments: 0,
+      shares: 0
+    };
 
-      const newItem = {
-        title: resData.title || `動画 (${resData.date || '投稿'})`,
-        url: cleanUrl,
-        date: resData.date || "2026/08/18",
-        isoDate: resData.isoDate || "2026-08-18",
-        timestamp: resData.timestamp || Date.now(),
-        views: resData.metrics?.views || 0,
-        likes: resData.metrics?.likes || 0,
-        comments: resData.metrics?.comments || 0,
-        shares: resData.metrics?.shares || 0
-      };
-
-      storedRecentVideos.push(newItem);
-      sortAndSaveRecentVideos();
-
-      status.style.color = "#4ade80";
-      status.innerText = `✅ 「${newItem.title}」を追加しました！`;
-      urlInput.value = "";
-
-    } catch (err) {
-      console.error(err);
-      status.style.color = "#f87171";
-      status.innerText = "❌ エラー: " + err.message;
-    }
-  }
-
-  // 🔄 最新数値に更新ボタンの処理
-  async function refreshAllRecentMetrics(event) {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-
-    const status = document.getElementById('recentUrlStatus');
-    if (!storedRecentVideos || storedRecentVideos.length === 0) {
-      return alert("登録済みの動画がありません。まず動画URLを追加してください。");
-    }
-
-    status.style.color = "#38bdf8";
-    status.innerText = `⏳ 登録済み動画の最新数値を同期中...`;
-
-    try {
-      for (let i = 0; i < storedRecentVideos.length; i++) {
-        const cleanUrl = storedRecentVideos[i].url;
-        if (!cleanUrl) continue;
-
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-          const apiRes = await fetch(`/api/tiktok-video?url=${encodeURIComponent(cleanUrl)}`, { signal: controller.signal });
-          clearTimeout(timeoutId);
-          const resData = await apiRes.json();
-
-          if (resData.success && resData.metrics) {
-            if (resData.metrics.views > 0) storedRecentVideos[i].views = resData.metrics.views;
-            if (resData.metrics.likes > 0) storedRecentVideos[i].likes = resData.metrics.likes;
-            if (resData.metrics.comments > 0) storedRecentVideos[i].comments = resData.metrics.comments;
-            if (resData.metrics.shares > 0) storedRecentVideos[i].shares = resData.metrics.shares;
-          }
-        } catch(e) {}
-      }
-    } catch (e) {}
-
+    storedRecentVideos.push(newItem);
     sortAndSaveRecentVideos();
+
     status.style.color = "#4ade80";
-    status.innerText = `✅ 数値の最新同期が完了しました！`;
+    status.innerText = `✅ 動画枠を追加しました！再生数やいいね数を右の入力枠に入力してください。`;
+    urlInput.value = "";
   }
 
   async function handleExcelUpload(event) {
@@ -875,7 +785,6 @@
     }
   }
 
-  // ⚡ 動的数値でのサマリー出力
   function analyzeAccountTrends() {
     const resultBox = document.getElementById('trendResultBox');
     const adviceText = document.getElementById('trendAdviceText');
