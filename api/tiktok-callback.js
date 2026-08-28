@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. TikTok公式OAuthでアカウント基本情報を取得
+    // 1. TikTok公式OAuth認証
     const tokenRes = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     const userData = await userRes.json();
     const userInfo = userData?.data?.user || {};
 
-    // 2. RapidAPI 経由で動画パフォーマンス数値（再生・いいね・コメ・シェア）を自動取得
+    // 2. RapidAPI 経由で @supnohe の最新5投稿の各インサイト数値を自動取得
     let videosList = [];
     const targetUsername = "supnohe";
 
@@ -48,38 +48,34 @@ export default async function handler(req, res) {
       });
 
       const rapidData = await rapidRes.json();
-      // レスポンスの階層を柔軟に判定
-      const postsList = rapidData?.data?.itemList || rapidData?.itemList || rapidData?.data?.videos || rapidData?.data || [];
+      console.log("RapidAPI Response:", JSON.stringify(rapidData));
 
-      if (Array.isArray(postsList)) {
-        videosList = postsList.slice(0, 5).map(v => {
-          // statsV2 または stats または 直下プロパティに対応
-          const st = v.statsV2 || v.stats || v.statistics || v;
+      // レスポンス配列の抽出
+      const rawPosts = rapidData?.data?.itemList || rapidData?.itemList || rapidData?.data?.videos || rapidData?.data || [];
+
+      if (Array.isArray(rawPosts) && rawPosts.length > 0) {
+        videosList = rawPosts.slice(0, 5).map(v => {
+          const stats = v.statsV2 || v.stats || v.statistics || v;
           const createTime = v.createTime ? new Date(v.createTime * 1000) : (v.create_time ? new Date(v.create_time * 1000) : new Date());
 
-          const playCount = st.playCount || st.play_count || st.views || v.playCount || 0;
-          const diggCount = st.diggCount || st.digg_count || st.likes || v.diggCount || 0;
-          const commentCount = st.commentCount || st.comment_count || st.comments || v.commentCount || 0;
-          const shareCount = st.shareCount || st.share_count || st.shares || v.shareCount || 0;
-
           return {
-            title: v.desc || v.title || v.video_description || "TikTok動画",
+            title: v.desc || v.title || v.video_description || "TikTok投稿動画",
             url: `https://www.tiktok.com/@${targetUsername}/video/${v.id || v.video_id}`,
             date: createTime.toLocaleDateString('ja-JP'),
             isoDate: createTime.toISOString().split('T')[0],
             timestamp: createTime.getTime(),
-            views: Number(playCount),
-            likes: Number(diggCount),
-            comments: Number(commentCount),
-            shares: Number(shareCount)
+            views: Number(stats.playCount || stats.play_count || stats.views || 0),
+            likes: Number(stats.diggCount || stats.digg_count || stats.likes || 0),
+            comments: Number(stats.commentCount || stats.comment_count || stats.comments || 0),
+            shares: Number(stats.shareCount || stats.share_count || stats.shares || 0)
           };
         });
       }
     } catch (rapidErr) {
-      console.error("RapidAPI Fetch Error:", rapidErr);
+      console.error("RapidAPI Error:", rapidErr);
     }
 
-    // 3. 取得データをフロントエンドへ渡す
+    // 3. アプリへリダイレクト
     const redirectParams = new URLSearchParams({
       access_token: accessToken || "success",
       username: userInfo.display_name || `@${targetUsername}`,
