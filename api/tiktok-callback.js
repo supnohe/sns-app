@@ -4,14 +4,12 @@ export default async function handler(req, res) {
   const CLIENT_SECRET = "vICFuD4w4r2OI78mtTqcz45Um94KdzS1";
   const REDIRECT_URI = "https://sns-app-iota.vercel.app/api/tiktok-callback.js";
 
-  const RAPID_API_KEY = "d5d83e4fa6msh08478310af3bfcfp150258jsnf9ffe2098b50";
-
   if (!code) {
     return res.status(400).send("認可コードが受け取れませんでした。");
   }
 
   try {
-    // 1. TikTok公式OAuth認証でアカウント基本情報を取得
+    // 1. アクセストークン取得
     const tokenRes = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -27,6 +25,7 @@ export default async function handler(req, res) {
     const tokenData = await tokenRes.json();
     const accessToken = tokenData.access_token;
 
+    // 2. ユーザーアカウント情報の取得
     const statsFields = "open_id,union_id,avatar_url,display_name,follower_count,likes_count,video_count";
     const userRes = await fetch(`https://open.tiktokapis.com/v2/user/info/?fields=${statsFields}`, {
       headers: { "Authorization": `Bearer ${accessToken}` }
@@ -34,65 +33,74 @@ export default async function handler(req, res) {
     const userData = await userRes.json();
     const userInfo = userData?.data?.user || {};
 
-    // 2. RapidAPI から @supnohe の最新5投稿の全数値を精密抽出
+    // 3. 動画一覧（video.list）の取得
     let videosList = [];
-    let debugMessage = "";
-    const targetUsername = "supnohe";
-
     try {
-      const rapidRes = await fetch(`https://tiktok-api23.p.rapidapi.com/api/user/posts?unique_id=${targetUsername}&count=5`, {
-        method: "GET",
+      const videoListRes = await fetch("https://open.tiktokapis.com/v2/video/list/?fields=id,title,create_time,share_url", {
+        method: "POST",
         headers: {
-          "x-rapidapi-key": RAPID_API_KEY,
-          "x-rapidapi-host": "tiktok-api23.p.rapidapi.com"
-        }
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ max_count: 5 })
       });
 
-      const rapidData = await rapidRes.json();
-      
-      // レスポンスの全階層パターンに対応
-      const posts = rapidData?.data?.itemList || rapidData?.itemList || rapidData?.data?.videos || rapidData?.data || (Array.isArray(rapidData) ? rapidData : []);
+      const videoListData = await videoListRes.json();
+      const rawVideos = videoListData?.data?.videos || [];
 
-      if (Array.isArray(posts) && posts.length > 0) {
-        videosList = posts.slice(0, 5).map(v => {
-          const st = v.statsV2 || v.stats || v.statistics || v;
-          const createTime = v.createTime ? new Date(v.createTime * 1000) : (v.create_time ? new Date(v.create_time * 1000) : new Date());
+      // 4. 各動画URLからリアルタイムで再生数・いいね数・コメ数・シェア数をページ解析取得
+      videosList = await Promise.all(rawVideos.map(async (v) => {
+        const createTime = v.create_time ? new Date(v.create_time * 1000) : new Date();
+        const shareUrl = v.share_url || `https://www.tiktok.com/@supnohe/video/${v.id}`;
+        
+        let views = 0, likes = 0, comments = 0, shares = 0;
 
-          // 多種多様なプロパティ名から数値を取り出し
-          const views = st.playCount ?? st.play_count ?? st.views ?? v.playCount ?? v.play_count ?? 0;
-          const likes = st.diggCount ?? st.digg_count ?? st.likes ?? v.diggCount ?? v.digg_count ?? 0;
-          const comments = st.commentCount ?? st.comment_count ?? st.comments ?? v.commentCount ?? v.comment_count ?? 0;
-          const shares = st.shareCount ?? st.share_count ?? st.shares ?? v.shareCount ?? v.share_count ?? 0;
+        try {
+          // 動画の公開WebページからOGP/メタデータ数値を高速抽出
+          const pageRes = await fetch(shareUrl, {
+            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+          });
+          const htmlText = await pageRes.text();
 
-          return {
-            title: v.desc || v.title || v.video_description || "TikTok投稿動画",
-            url: `https://www.tiktok.com/@${targetUsername}/video/${v.id || v.video_id}`,
-            date: createTime.toLocaleDateString('ja-JP'),
-            isoDate: createTime.toISOString().split('T')[0],
-            timestamp: createTime.getTime(),
-            views: Number(views),
-            likes: Number(likes),
-            comments: Number(comments),
-            shares: Number(shares)
-          };
-        });
-        debugMessage = `✅ RapidAPI取得成功 (${videosList.length}件)`;
-      } else {
-        debugMessage = "⚠️ RapidAPIレスポンス内に動画データが見つかりませんでした: " + JSON.stringify(rapidData).substring(0, 100);
-      }
-    } catch (rapidErr) {
-      debugMessage = "❌ RapidAPI通信エラー: " + rapidErr.message;
+          // メタタグおよびJSONデータからの数値抽出パターン
+          const playMatch = htmlText.match(/"playCount":(\d+)/) || htmlText.match(/"views":(\d+)/);
+          const diggMatch = htmlText.match(/"diggCount":(\d+)/) || htmlText.match(/"likes":(\d+)/);
+          const commentMatch = htmlText.match(/"commentCount":(\d+)/);
+          const shareMatch = htmlText.match(/"shareCount":(\d+)/);
+
+          if (playMatch) views = Number(playMatch[1]);
+          if (diggMatch) likes = Number(diggMatch[1]);
+          if (commentMatch) comments = Number(commentMatch[1]);
+          if (shareMatch) shares = Number(shareMatch[1]);
+        } catch (err) {
+          console.error("Page scrape error:", err);
+        }
+
+        return {
+          title: v.title || "TikTok投稿動画",
+          url: shareUrl,
+          date: createTime.toLocaleDateString('ja-JP'),
+          isoDate: createTime.toISOString().split('T')[0],
+          timestamp: createTime.getTime(),
+          views: views,
+          likes: likes,
+          comments: comments,
+          shares: shares
+        };
+      }));
+
+    } catch (vErr) {
+      console.error("Video Fetch Error:", vErr);
     }
 
-    // 3. アプリ画面へデータ転送
+    // 5. アプリ画面へ完全な数値を渡してリダイレクト
     const redirectParams = new URLSearchParams({
       access_token: accessToken || "success",
-      username: userInfo.display_name || `@${targetUsername}`,
-      followers: userInfo.follower_count || 19565,
-      likes: userInfo.likes_count || 529342,
-      videos: userInfo.video_count || 173,
-      videos_data: JSON.stringify(videosList),
-      debug_msg: debugMessage
+      username: userInfo.display_name || "@supnohe",
+      followers: userInfo.follower_count || 0,
+      likes: userInfo.likes_count || 0,
+      videos: userInfo.video_count || 0,
+      videos_data: JSON.stringify(videosList)
     });
 
     res.writeHead(302, { Location: `/?${redirectParams.toString()}` });
