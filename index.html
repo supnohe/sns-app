@@ -306,7 +306,6 @@
               <input type="text" id="inAccUrl" class="form-input" placeholder="https://www.tiktok.com/@supnohe">
             </div>
 
-            <!-- 🎵 TikTok公式OAuth連携ボタン (.jsパス対応) -->
             <button type="button" class="btn" style="background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; font-weight: bold; margin-bottom: 10px;" onclick="location.href='/api/tiktok-login.js'">
               🎵 TikTokアカウントと公式連携（OAuthログイン）
             </button>
@@ -325,9 +324,8 @@
               <label>📁 分析用Excelデータ (.xlsx) を読み込む（任意）</label>
               <input type="file" id="excelFilesInput" class="form-input" accept=".xlsx, .xls, .csv" multiple onchange="handleExcelUpload(event)">
             </div>
-            <p id="excelStatus" style="font-size: 12px; color: #38bdf8; margin-bottom: 16px;">※各動画の数値枠は手動入力で永続保存・分析できます。</p>
+            <p id="excelStatus" style="font-size: 12px; color: #38bdf8; margin-bottom: 16px;">※各動画の数値枠に入力した数値は自動的に永続保存・分析されます。</p>
 
-            <!-- 🔗 URL追加フォーム -->
             <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
               <label>🎥 新しく投稿した動画のTikTok URLを追加</label>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -337,7 +335,6 @@
               <p id="recentUrlStatus" style="font-size: 12px; color: #38bdf8; margin-top: 6px;"></p>
             </div>
 
-            <!-- 📝 蓄積された直近投稿タイトル5個 -->
             <div style="margin-top: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <label style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📋 登録済みの直近5投稿（数値入力は自動保存されます）</label>
@@ -413,7 +410,7 @@
       currentUser = session.user;
       showAppScreen();
 
-      // OAuthリダイレクト後のパラメータ（ユーザー情報＋動画一覧データ）を検出
+      // URLパラメータの検知と強制データ適用
       const urlParams = new URLSearchParams(window.location.search);
       const accessToken = urlParams.get('access_token');
       if (accessToken) {
@@ -428,16 +425,17 @@
         if (likes !== null) document.getElementById('accLikes').innerText = Number(likes).toLocaleString();
         if (videos !== null) document.getElementById('accVideos').innerText = Number(videos).toLocaleString();
 
+        const saved = JSON.parse(localStorage.getItem(`my_tiktok_acc_${currentUser.id}`) || '{}');
         const accData = {
-          url: document.getElementById('inAccUrl').value,
+          url: document.getElementById('inAccUrl').value || saved.url || '',
           username: username || document.getElementById('accUsername').innerText,
-          followers: followers || 0,
-          likes: likes || 0,
-          videos: videos || 0
+          followers: followers !== null ? followers : (saved.followers || 0),
+          likes: likes !== null ? likes : (saved.likes || 0),
+          videos: videos !== null ? videos : (saved.videos || 0)
         };
         localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
-        // 自動取得した動画データを「直近投稿」に反映・自動保存
+        // RapidAPIから取得された最新の動画数値をローカルデータに強制上書き設定
         if (videosDataStr) {
           try {
             const fetchedVideos = JSON.parse(videosDataStr);
@@ -450,7 +448,7 @@
           }
         }
 
-        document.getElementById('accStatus').innerText = "✅ TikTok公式連携＆全動画データの自動同期に成功しました！";
+        document.getElementById('accStatus').innerText = "✅ 全動画データの精密自動同期に成功しました！";
         window.history.replaceState({}, document.title, "/");
       }
     } else {
@@ -692,7 +690,6 @@
     const saved = localStorage.getItem(`my_recent_titles_${currentUser.id}`);
     if (saved) {
       storedRecentVideos = JSON.parse(saved);
-      storedRecentVideos = storedRecentVideos.filter(v => v.title && !v.title.includes("TikTok動画 (") && v.title !== "不明" && v.title !== "タイトル不明");
       sortAndSaveRecentVideos();
     } else {
       storedRecentVideos = [];
@@ -709,10 +706,10 @@
 
     ul.innerHTML = storedRecentVideos.map((item, index) => {
       const dateVal = item.isoDate || (item.date ? item.date.replace(/\//g, '-') : '');
-      const views = item.views || 0;
-      const likes = item.likes || 0;
-      const comments = item.comments || 0;
-      const shares = item.shares || 0;
+      const views = item.views !== undefined ? item.views : 0;
+      const likes = item.likes !== undefined ? item.likes : 0;
+      const comments = item.comments !== undefined ? item.comments : 0;
+      const shares = item.shares !== undefined ? item.shares : 0;
 
       return `
         <li class="title-history-item">
