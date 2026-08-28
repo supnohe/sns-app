@@ -354,6 +354,28 @@
           </div>
         </div>
 
+        <!-- 🎯 目標（ロールモデル）アカウント分析 & 比較アドバイス -->
+        <div class="dash-card">
+          <div class="card-header"><span>🎯</span> 🎯 ロールモデル（目標アカウント）の分析 & 改善アドバイス</div>
+
+          <div class="form-group">
+            <label>🔗 目標・参考にしたいTikTokアカウントのURL（またはユーザー名）</label>
+            <input type="text" id="roleModelUrlInput" class="form-input" placeholder="https://www.tiktok.com/@target_account">
+          </div>
+
+          <div class="form-group">
+            <label>🎥 診断したい自分の動画を選択（任意）</label>
+            <input type="file" id="myVideoForRoleModel" class="form-input" accept="video/*">
+          </div>
+
+          <button type="button" class="btn btn-primary" onclick="analyzeRoleModelAndCompare()">🎯 ロールモデルを分析して比較アドバイスを生成</button>
+
+          <div id="roleModelResultBox" class="result-box">
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">💡 ロールモデル比較・改善戦略レポート</div>
+            <div id="roleModelAdviceText" class="advice-text">分析中...</div>
+          </div>
+        </div>
+
         <!-- 1. 参考動画ナレッジ蓄積 -->
         <div class="dash-card">
           <div class="card-header"><span>📥</span> 1. バズ動画ナレッジ蓄積</div>
@@ -375,22 +397,6 @@
           <p id="refStatus" style="font-size: 12px; color: var(--text-muted); margin-top: 8px;"></p>
         </div>
 
-        <!-- 2. 自分の動画診断 & TikTok SEO対応投稿文・ハッシュタグ生成 -->
-        <div class="dash-card">
-          <div class="card-header"><span>🎥</span> 2. 自社動画のAI改善診断 & TikTok SEO投稿文提案</div>
-
-          <div class="form-group">
-            <label>診断・投稿文作成用の動画を選択</label>
-            <input type="file" id="myVideo" class="form-input" accept="video/*">
-          </div>
-
-          <button type="button" class="btn btn-primary" onclick="analyzeMyVideo()">AI動画診断 & TikTok SEO投稿文・ハッシュタグ提案を実行</button>
-
-          <div id="resultBox" class="result-box">
-            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 12px;">💡 AI診断分析 & 投稿作成レポート</div>
-            <div id="adviceText" class="advice-text">分析中...</div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -410,7 +416,6 @@
       currentUser = session.user;
       showAppScreen();
 
-      // OAuthリダイレクトURLパラメータ検知・最新データ強制上書き
       const urlParams = new URLSearchParams(window.location.search);
       const accessToken = urlParams.get('access_token');
       if (accessToken) {
@@ -419,7 +424,6 @@
         const likes = urlParams.get('likes');
         const videos = urlParams.get('videos');
         const videosDataStr = urlParams.get('videos_data');
-        const debugMsg = urlParams.get('debug_msg');
 
         if (username) document.getElementById('accUsername').innerText = username;
         if (followers !== null) document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
@@ -436,7 +440,6 @@
         };
         localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
-        // RapidAPIから返った5件の動画インサイトデータを画面に丸ごとセット＆保存
         if (videosDataStr) {
           try {
             const fetchedVideos = JSON.parse(videosDataStr);
@@ -450,7 +453,7 @@
           }
         }
 
-        document.getElementById('accStatus').innerText = debugMsg || "✅ TikTok連携＆最新動画データの全自動同期に成功しました！";
+        document.getElementById('accStatus').innerText = "✅ TikTokアカウントと全動画インサイトの自動同期に成功しました！";
         window.history.replaceState({}, document.title, "/");
       }
     } else {
@@ -903,6 +906,51 @@ ${titlesListStr}
     adviceText.innerText = reportContent;
   }
 
+  // 🎯 ロールモデルアカウント分析 & 自社動画との比較機能
+  async function analyzeRoleModelAndCompare() {
+    const roleModelUrl = document.getElementById('roleModelUrlInput').value.trim();
+    const myVideoFile = document.getElementById('myVideoForRoleModel').files[0];
+    const resultBox = document.getElementById('roleModelResultBox');
+    const adviceText = document.getElementById('roleModelAdviceText');
+
+    if (!roleModelUrl) return alert("ロールモデルアカウントのURL（またはユーザー名）を入力してください");
+
+    resultBox.style.display = "block";
+    adviceText.innerText = "⏳ ロールモデルアカウントの情報をWEB解析・比較アドバイス生成中...";
+
+    try {
+      let myVideoData = null;
+      if (myVideoFile) {
+        const base64 = await fileToBase64(myVideoFile);
+        myVideoData = { mime_type: myVideoFile.type || "video/mp4", data: base64 };
+      }
+
+      const promptText = `
+【最重要タスク】
+ユーザーが目標（ロールモデル）としている以下のTikTokアカウントを検索し、そのアカウントの「動画構成」「フックのパターン」「使用音源の選び方」「キャプション・ハッシュタグ設計」を詳しく分析してください。
+
+ロールモデルURL/アカウント: ${roleModelUrl}
+
+【比較・アドバイス出力要件】
+1. **ロールモデルアカウントのバズ分析**
+   - どんな投稿が特に伸びているか（冒頭の惹きつけ、画角、字幕スタイル）
+   - 視聴者を最後まで惹きつける構成パターン
+2. **自分のアカウント（直近の数値）との比較分析**
+   - ロールモデルと自分の直近データ（または添付動画）の決定的な違い
+3. **今日から真似すべき具体アクション**
+   - 冒頭2秒の真似し方（フックテキスト・音声の具体例）
+   - おすすめのキャプション（投稿文）構図 & ハッシュタグセット
+`;
+
+      const rawAdvice = await callGeminiWithSearch(promptText, myVideoData);
+      adviceText.innerText = rawAdvice;
+
+    } catch (error) {
+      console.error(error);
+      adviceText.innerText = "❌ 解析通信エラー: " + error.message;
+    }
+  }
+
   async function addVideoFileKnowledge() {
     const fileInput = document.getElementById('refVideoFile');
     const file = fileInput.files[0];
@@ -967,49 +1015,24 @@ URL: ${rawUrl}
     }
   }
 
-  async function analyzeMyVideo() {
-    const myFile = document.getElementById('myVideo').files[0];
-    const resultBox = document.getElementById('resultBox');
-    const adviceText = document.getElementById('adviceText');
+  // Google Search Grounding対応のGemini呼び出し関数
+  async function callGeminiWithSearch(promptText, inlineData = null) {
+    const parts = [{ text: promptText }];
+    if (inlineData) parts.push({ inline_data: inlineData });
 
-    if (!myFile) return alert("診断用動画を選択してください");
+    const requestBody = {
+      contents: [{ parts }],
+      tools: [{ google_search: {} }]
+    };
 
-    resultBox.style.display = "block";
-    adviceText.innerText = "⏳ 2026年TikTokアルゴリズム基準でAI診断・投稿文生成中...";
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
 
-    try {
-      const { data: dbData } = await supabaseClient.from('reference_videos').select('title, features');
-      
-      let knowledgeText = "";
-      if (dbData && dbData.length > 0) {
-        knowledgeText = dbData.map((item, index) => `【お手本データ${index+1}: ${item.title}】\n${item.features}`).join("\n\n");
-      } else {
-        knowledgeText = "（現在ナレッジDBは空です）";
-      }
-
-      const myBase64 = await fileToBase64(myFile);
-
-      const promptText = `
-添付動画を評価し、TikTok SEO対応投稿文・ハッシュタグを作成してください。
-【ナレッジ】\n${knowledgeText}
-`;
-
-      const rawAdvice = await callGemini(promptText, { mime_type: myFile.type || "video/mp4", data: myBase64 });
-      adviceText.innerText = rawAdvice;
-
-      await supabaseClient.from('video_analyses').insert([
-        {
-          title: `TikTok SEO診断 (${new Date().toLocaleString()})`,
-          target_video_url: myFile.name,
-          ai_advice: rawAdvice,
-          user_id: currentUser.id
-        }
-      ]);
-
-    } catch (error) {
-      console.error(error);
-      adviceText.innerText = "❌ AI診断通信エラー。後ほど再実行してください: " + error.message;
-    }
+    const data = await res.json();
+    return data.candidates[0].content.parts[0].text;
   }
 
   async function callGemini(promptText, inlineData = null) {
