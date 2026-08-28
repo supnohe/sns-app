@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   const { code } = req.query;
   const CLIENT_KEY = "sbawb0xfwm83i7dzw2";
-  const CLIENT_SECRET = "vlCFuD4w4r2OI78mtTqcz45Um94KdzS1";
+  const CLIENT_SECRET = "vICFuD4w4r2OI78mtTqcz45Um94KdzS1";
   const REDIRECT_URI = "https://sns-app-iota.vercel.app/api/tiktok-callback.js";
 
   if (!code) {
