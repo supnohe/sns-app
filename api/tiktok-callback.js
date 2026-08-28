@@ -9,6 +9,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    // 1. アクセストークンを取得
     const tokenRes = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -22,13 +23,38 @@ export default async function handler(req, res) {
     });
 
     const tokenData = await tokenRes.json();
-    
-    if (tokenData.access_token) {
-      res.writeHead(302, { Location: `/?access_token=${tokenData.access_token}&open_id=${tokenData.open_id || ''}` });
-      res.end();
-    } else {
-      res.status(400).send("トークン取得に失敗しました: " + JSON.stringify(tokenData));
+    const accessToken = tokenData.access_token;
+
+    if (!accessToken) {
+      return res.status(400).send("トークン取得に失敗しました: " + JSON.stringify(tokenData));
     }
+
+    // 2. TikTok APIからユーザー詳細・統計データ（フォロワー数・いいね数）を自動取得
+    let statsParams = "open_id,union_id,avatar_url,display_name,follower_count,likes_count,video_count";
+    const userRes = await fetch(`https://open.tiktokapis.com/v2/user/info/?fields=${statsParams}`, {
+      headers: { "Authorization": `Bearer ${accessToken}` }
+    });
+
+    const userData = await userRes.json();
+    const userInfo = userData?.data?.user || {};
+
+    const followers = userInfo.follower_count || 0;
+    const likes = userInfo.likes_count || 0;
+    const videos = userInfo.video_count || 0;
+    const displayName = userInfo.display_name || "TikTok User";
+
+    // 3. アプリ画面へ取得データを返却
+    const redirectParams = new URLSearchParams({
+      access_token: accessToken,
+      username: displayName,
+      followers: followers,
+      likes: likes,
+      videos: videos
+    });
+
+    res.writeHead(302, { Location: `/?${redirectParams.toString()}` });
+    res.end();
+
   } catch (error) {
     res.status(500).send("通信エラー: " + error.message);
   }
