@@ -410,7 +410,7 @@
       currentUser = session.user;
       showAppScreen();
 
-      // URLパラメータの検知と強制データ適用
+      // OAuthリダイレクトURLパラメータ検知・最新データ強制上書き
       const urlParams = new URLSearchParams(window.location.search);
       const accessToken = urlParams.get('access_token');
       if (accessToken) {
@@ -419,6 +419,7 @@
         const likes = urlParams.get('likes');
         const videos = urlParams.get('videos');
         const videosDataStr = urlParams.get('videos_data');
+        const debugMsg = urlParams.get('debug_msg');
 
         if (username) document.getElementById('accUsername').innerText = username;
         if (followers !== null) document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
@@ -435,20 +436,21 @@
         };
         localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
-        // RapidAPIから取得された最新の動画数値をローカルデータに強制上書き設定
+        // RapidAPIから返った5件の動画インサイトデータを画面に丸ごとセット＆保存
         if (videosDataStr) {
           try {
             const fetchedVideos = JSON.parse(videosDataStr);
-            if (fetchedVideos && fetchedVideos.length > 0) {
+            if (Array.isArray(fetchedVideos) && fetchedVideos.length > 0) {
               storedRecentVideos = fetchedVideos;
-              sortAndSaveRecentVideos();
+              localStorage.setItem(`my_recent_titles_${currentUser.id}`, JSON.stringify(storedRecentVideos));
+              renderRecentTitlesUI();
             }
           } catch (e) {
             console.error("Video list parse error:", e);
           }
         }
 
-        document.getElementById('accStatus').innerText = "✅ 全動画データの精密自動同期に成功しました！";
+        document.getElementById('accStatus').innerText = debugMsg || "✅ TikTok連携＆最新動画データの全自動同期に成功しました！";
         window.history.replaceState({}, document.title, "/");
       }
     } else {
@@ -690,7 +692,7 @@
     const saved = localStorage.getItem(`my_recent_titles_${currentUser.id}`);
     if (saved) {
       storedRecentVideos = JSON.parse(saved);
-      sortAndSaveRecentVideos();
+      renderRecentTitlesUI();
     } else {
       storedRecentVideos = [];
       renderRecentTitlesUI();
@@ -700,7 +702,7 @@
   function renderRecentTitlesUI() {
     const ul = document.getElementById('recentTitlesList');
     if (!storedRecentVideos || storedRecentVideos.length === 0) {
-      ul.innerHTML = `<li class="title-history-item" style="color: var(--text-muted);">まだ動画URLが登録されていません。上の入力欄から追加してください。</li>`;
+      ul.innerHTML = `<li class="title-history-item" style="color: var(--text-muted);">まだ動画URLが登録されていません。</li>`;
       return;
     }
 
@@ -802,7 +804,7 @@
     sortAndSaveRecentVideos();
 
     status.style.color = "#4ade80";
-    status.innerText = `✅ 動画枠を追加しました！再生数やいいね数を右の入力枠に入力してください。`;
+    status.innerText = `✅ 動画枠を追加しました！`;
     urlInput.value = "";
   }
 
