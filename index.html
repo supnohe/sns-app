@@ -413,7 +413,7 @@
       currentUser = session.user;
       showAppScreen();
 
-      // OAuthリダイレクト後のパラメータを検出して自動反映・保存
+      // OAuthリダイレクト後のパラメータ（ユーザー情報＋動画一覧データ）を検出
       const urlParams = new URLSearchParams(window.location.search);
       const accessToken = urlParams.get('access_token');
       if (accessToken) {
@@ -421,6 +421,7 @@
         const followers = urlParams.get('followers');
         const likes = urlParams.get('likes');
         const videos = urlParams.get('videos');
+        const videosDataStr = urlParams.get('videos_data');
 
         if (username) document.getElementById('accUsername').innerText = username;
         if (followers !== null) document.getElementById('accFollowers').innerText = Number(followers).toLocaleString();
@@ -436,7 +437,20 @@
         };
         localStorage.setItem(`my_tiktok_acc_${currentUser.id}`, JSON.stringify(accData));
 
-        document.getElementById('accStatus').innerText = "✅ TikTok公式連携＆最新データの取得に成功しました！";
+        // 自動取得した動画データを「直近投稿」に反映・自動保存
+        if (videosDataStr) {
+          try {
+            const fetchedVideos = JSON.parse(videosDataStr);
+            if (fetchedVideos && fetchedVideos.length > 0) {
+              storedRecentVideos = fetchedVideos;
+              sortAndSaveRecentVideos();
+            }
+          } catch (e) {
+            console.error("Video list parse error:", e);
+          }
+        }
+
+        document.getElementById('accStatus').innerText = "✅ TikTok公式連携＆全動画データの自動同期に成功しました！";
         window.history.replaceState({}, document.title, "/");
       }
     } else {
