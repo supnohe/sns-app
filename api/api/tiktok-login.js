@@ -6,5 +6,5 @@ export default function handler(req, res) {
   const csrfState = Math.random().toString(36).substring(2);
   const authUrl = `https://www.tiktok.com/v2/auth/authorize/?client_key=${CLIENT_KEY}&scope=${SCOPES}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${csrfState}`;
 
-  res.redirect(authUrl);
+  return res.redirect(302, authUrl);
 }
